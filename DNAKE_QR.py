@@ -63,16 +63,18 @@ def generate_dnake_qr(developer_name, item_id=None):
         driver.execute_script("arguments[0].dispatchEvent(new Event('input'));", name_input)
         driver.execute_script("arguments[0].dispatchEvent(new Event('change'));", name_input)
         
-        # --- תיקון: מציאת הכפתור לפי טקסט ולא לפי מחלקה ---
-        print("Clicking setPinBtn by text search...")
+        # --- תיקון סופי: לחיצה על הכפתור השני שנמצא בעמוד (בדרך כלל כפתור ה-PIN) ---
+        print("Clicking PIN button via index...")
         time.sleep(2)
-        # מחפש כפתור שמכיל את המילה Set או PIN
-        pin_btn = WebDriverWait(driver, 10).until(
-            EC.element_to_be_clickable((By.XPATH, "//button[contains(., 'Set') or contains(., 'PIN')]"))
-        )
-        driver.execute_script("arguments[0].click();", pin_btn)
+        buttons = driver.find_elements(By.XPATH, "//button")
+        # מנסים ללחוץ על כל כפתור שנראה כמו כפתור הגדרות או PIN באזור הזה
+        for btn in buttons:
+            if "set" in btn.get_attribute("class") or "pin" in btn.get_attribute("class"):
+                driver.execute_script("arguments[0].click();", btn)
+                break
         # ---------------------------------------------
         
+        time.sleep(1)
         driver.find_element(By.XPATH, "//div[contains(@class, 'pin-code-container')]/following-sibling::label//span[contains(@class, 'el-checkbox__inner')]").click()
         
         driver.find_elements(By.XPATH, "//button[contains(., 'Add')]")[-1].click()
