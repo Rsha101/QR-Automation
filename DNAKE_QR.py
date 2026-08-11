@@ -63,9 +63,15 @@ def generate_dnake_qr(developer_name, item_id=None):
         driver.execute_script("arguments[0].dispatchEvent(new Event('input'));", name_input)
         driver.execute_script("arguments[0].dispatchEvent(new Event('change'));", name_input)
         
-        print("Clicking setPinBtn...")
+        # --- תיקון אגרסיבי: חיפוש כל כפתור שמכיל את המילה PIN או Set ---
+        print("Clicking PIN button via broad search...")
         time.sleep(2)
-        driver.execute_script("document.querySelector('.setPinBtn').click();")
+        # מחפש כפתור שמכיל PIN או Set בכל מקום בטקסט או בקלאס
+        pin_btn = WebDriverWait(driver, 15).until(
+            EC.element_to_be_clickable((By.XPATH, "//button[contains(translate(., 'PINSET', 'pinset'), 'pin') or contains(translate(., 'PINSET', 'pinset'), 'set')]"))
+        )
+        driver.execute_script("arguments[0].click();", pin_btn)
+        # ---------------------------------------------
         
         driver.find_element(By.XPATH, "//div[contains(@class, 'pin-code-container')]/following-sibling::label//span[contains(@class, 'el-checkbox__inner')]").click()
         
@@ -75,13 +81,11 @@ def generate_dnake_qr(developer_name, item_id=None):
         driver.find_elements(By.XPATH, "//button[.//span[text()='OK']]")[-1].click()
         time.sleep(2)
         
-        # --- לחיצה מדויקת על כפתור ה-SAVE לפי ה-HTML ששלחת ---
-        print("Clicking Save button via exact HTML structure...")
+        # כפתור ה-SAVE המדויק
         save_btn = WebDriverWait(driver, 15).until(
             EC.element_to_be_clickable((By.XPATH, "//button[contains(@class, 'primarybutton') and .//span[text()='Save']]"))
         )
         driver.execute_script("arguments[0].click();", save_btn)
-        # ---------------------------------------------------
         
         print("User saved, waiting for table refresh...")
         time.sleep(8)
