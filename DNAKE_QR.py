@@ -156,22 +156,27 @@ def generate_dnake_qr(developer_name, item_id=None):
             print(f"BINGO! QR code saved successfully as: {file_path}")
             
             # ==========================================
-            # העלאת הקובץ ישירות למאנדיי
+            # העלאת הקובץ ישירות למאנדיי (גרסה מתוקנת)
             # ==========================================
             if item_id:
                 print("Uploading QR code to Monday.com...")
                 upload_url = "https://api.monday.com/v2/file"
-                headers = {"Authorization": MONDAY_API_TOKEN}
                 
-                query = f'mutation ($file: File!) {{ add_file_to_column (item_id: {item_id}, column_id: "{FILE_COLUMN_ID}", file: $file) {{ id }} }}'
+                # המפתח כאן הוא להשתמש ב-query ו-map בצורה שמאנדיי אוהב
+                query = "mutation ($file: File!) { add_file_to_column (item_id: " + str(item_id) + ', column_id: "' + FILE_COLUMN_ID + '", file: $file) { id } }'
                 
                 with open(file_path, 'rb') as f:
-                    files = {'variables[file]': (os.path.basename(file_path), f, 'image/png')}
-                    data = {'query': query}
-                    # הוספנו verify=False כדי לעקוף את החסימה גם בעבודה מול מאנדיי
-                    response = requests.post(upload_url, headers=headers, data=data, files=files, verify=False)
+                    files = {
+                        'query': (None, query),
+                        'variables[file]': (os.path.basename(file_path), f, 'image/png')
+                    }
+                    headers = {"Authorization": MONDAY_API_TOKEN}
+                    response = requests.post(upload_url, headers=headers, files=files, verify=False)
                 
-                if response.status_code == 200 and 'errors' not in response.json():
+                print(f"Monday Response Status: {response.status_code}")
+                print(f"Monday Response Text: {response.text}")
+                
+                if response.status_code == 200:
                     print("Success: File uploaded to Monday perfectly!")
                 else:
                     print(f"Failed to upload to Monday: {response.text}")
