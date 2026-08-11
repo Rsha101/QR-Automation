@@ -63,18 +63,10 @@ def generate_dnake_qr(developer_name, item_id=None):
         driver.execute_script("arguments[0].dispatchEvent(new Event('input'));", name_input)
         driver.execute_script("arguments[0].dispatchEvent(new Event('change'));", name_input)
         
-        # --- תיקון סופי: לחיצה על הכפתור השני שנמצא בעמוד (בדרך כלל כפתור ה-PIN) ---
-        print("Clicking PIN button via index...")
+        print("Clicking setPinBtn...")
         time.sleep(2)
-        buttons = driver.find_elements(By.XPATH, "//button")
-        # מנסים ללחוץ על כל כפתור שנראה כמו כפתור הגדרות או PIN באזור הזה
-        for btn in buttons:
-            if "set" in btn.get_attribute("class") or "pin" in btn.get_attribute("class"):
-                driver.execute_script("arguments[0].click();", btn)
-                break
-        # ---------------------------------------------
+        driver.execute_script("document.querySelector('.setPinBtn').click();")
         
-        time.sleep(1)
         driver.find_element(By.XPATH, "//div[contains(@class, 'pin-code-container')]/following-sibling::label//span[contains(@class, 'el-checkbox__inner')]").click()
         
         driver.find_elements(By.XPATH, "//button[contains(., 'Add')]")[-1].click()
@@ -82,7 +74,14 @@ def generate_dnake_qr(developer_name, item_id=None):
         driver.find_element(By.XPATH, "//tr[.//td[contains(., 'יזמים')]]//span[contains(@class, 'el-checkbox__inner')]").click()
         driver.find_elements(By.XPATH, "//button[.//span[text()='OK']]")[-1].click()
         time.sleep(2)
-        driver.find_elements(By.XPATH, "//button[.//span[contains(text(), 'Save')]]")[-1].click()
+        
+        # --- לחיצה מדויקת על כפתור ה-SAVE לפי ה-HTML ששלחת ---
+        print("Clicking Save button via exact HTML structure...")
+        save_btn = WebDriverWait(driver, 15).until(
+            EC.element_to_be_clickable((By.XPATH, "//button[contains(@class, 'primarybutton') and .//span[text()='Save']]"))
+        )
+        driver.execute_script("arguments[0].click();", save_btn)
+        # ---------------------------------------------------
         
         print("User saved, waiting for table refresh...")
         time.sleep(8)
