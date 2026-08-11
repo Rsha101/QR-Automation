@@ -63,9 +63,15 @@ def generate_dnake_qr(developer_name, item_id=None):
         driver.execute_script("arguments[0].dispatchEvent(new Event('input'));", name_input)
         driver.execute_script("arguments[0].dispatchEvent(new Event('change'));", name_input)
         
-        print("Clicking setPinBtn via JS...")
+        # --- תיקון: מציאת הכפתור לפי טקסט ולא לפי מחלקה ---
+        print("Clicking setPinBtn by text search...")
         time.sleep(2)
-        driver.execute_script("document.querySelector('.setPinBtn').click();")
+        # מחפש כפתור שמכיל את המילה Set או PIN
+        pin_btn = WebDriverWait(driver, 10).until(
+            EC.element_to_be_clickable((By.XPATH, "//button[contains(., 'Set') or contains(., 'PIN')]"))
+        )
+        driver.execute_script("arguments[0].click();", pin_btn)
+        # ---------------------------------------------
         
         driver.find_element(By.XPATH, "//div[contains(@class, 'pin-code-container')]/following-sibling::label//span[contains(@class, 'el-checkbox__inner')]").click()
         
