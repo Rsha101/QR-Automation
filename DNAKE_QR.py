@@ -53,7 +53,6 @@ def generate_dnake_qr(developer_name, item_id=None):
         print("Clicking Add button...")
         WebDriverWait(driver, 20).until(EC.element_to_be_clickable((By.XPATH, "//div[@id='pane-customized']//button[.//span[contains(text(), 'Add')]]"))).click()
         
-        # --- מילוי שם בשיטת JavaScript ---
         print("Waiting for name input field...")
         time.sleep(3) 
         name_input = WebDriverWait(driver, 20).until(
@@ -64,10 +63,15 @@ def generate_dnake_qr(developer_name, item_id=None):
         driver.execute_script("arguments[0].dispatchEvent(new Event('input'));", name_input)
         driver.execute_script("arguments[0].dispatchEvent(new Event('change'));", name_input)
         print("Name entered successfully via JavaScript!")
-        # ----------------------------------------
         
-        # לחיצות על הגדרות QR
-        driver.find_element(By.CLASS_NAME, "setPinBtn").click()
+        # --- תיקון: המתנה לכפתור ה-PIN ---
+        print("Waiting for setPinBtn...")
+        time.sleep(2)
+        WebDriverWait(driver, 15).until(
+            EC.element_to_be_clickable((By.CLASS_NAME, "setPinBtn"))
+        ).click()
+        # -------------------------------
+        
         driver.find_element(By.XPATH, "//div[contains(@class, 'pin-code-container')]/following-sibling::label//span[contains(@class, 'el-checkbox__inner')]").click()
         
         # הוספת גישה
