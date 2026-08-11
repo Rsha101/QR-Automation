@@ -53,14 +53,17 @@ def generate_dnake_qr(developer_name, item_id=None):
         print("Clicking Add button...")
         WebDriverWait(driver, 20).until(EC.element_to_be_clickable((By.XPATH, "//div[@id='pane-customized']//button[.//span[contains(text(), 'Add')]]"))).click()
         
-        # --- חלק זה עודכן כדי להיות חסין יותר ---
+        # --- מילוי שם בשיטת JavaScript ---
         print("Waiting for name input field...")
         time.sleep(3) 
         name_input = WebDriverWait(driver, 20).until(
             EC.presence_of_element_located((By.XPATH, "//input[contains(@placeholder, 'Name') or @aria-label='Name']"))
         )
-        name_input.send_keys(developer_name)
-        print("Name entered successfully!")
+        driver.execute_script("arguments[0].value = '';", name_input)
+        driver.execute_script(f"arguments[0].value = '{developer_name}';", name_input)
+        driver.execute_script("arguments[0].dispatchEvent(new Event('input'));", name_input)
+        driver.execute_script("arguments[0].dispatchEvent(new Event('change'));", name_input)
+        print("Name entered successfully via JavaScript!")
         # ----------------------------------------
         
         # לחיצות על הגדרות QR
