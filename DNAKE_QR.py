@@ -29,7 +29,6 @@ def generate_dnake_qr(developer_name, item_id=None):
     options.add_argument('--window-size=2560,1440')
     options.add_argument('--ignore-certificate-errors')
     options.add_argument('--disable-blink-features=AutomationControlled')
-    # הכרחת אנגלית למקרה שהשרת בחו"ל משנה שפה
     options.add_argument('--lang=en-US') 
     options.add_argument('user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36')
     
@@ -123,7 +122,6 @@ def generate_dnake_qr(developer_name, item_id=None):
                 driver.execute_script("arguments[0].click();", btn)
                 break
                 
-        # המתנה ארוכה כדי לתת לאנימציה של החלון הפנימי להיעלם לגמרי!
         time.sleep(5) 
         
         print("Saving User...")
@@ -132,18 +130,27 @@ def generate_dnake_qr(developer_name, item_id=None):
         
         for btn in save_buttons:
             if btn.is_displayed():
-                # לחיצת ג'אווה סקריפט ישירה שמתעלמת מאנימציות ומשכבות שמסתירות את הכפתור
-                driver.execute_script("arguments[0].click();", btn)
+                driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", btn)
+                time.sleep(1)
+                try:
+                    btn.click() 
+                except:
+                    driver.execute_script("arguments[0].click();", btn)
                 clicked_save_btn = btn
                 break
         
         print("Waiting for modal to close (confirming save)...")
+        time.sleep(3)
+        # === צילום מסך לצורכי דיבאג ===
+        driver.save_screenshot("debug_after_save.png")
+        # ===============================
+        
         if clicked_save_btn:
             try:
-                WebDriverWait(driver, 10).until(EC.invisibility_of_element(clicked_save_btn))
+                WebDriverWait(driver, 7).until(EC.invisibility_of_element(clicked_save_btn))
                 print("Modal closed successfully. Save confirmed!")
-            except Exception as wait_e:
-                raise Exception("CRITICAL ERROR: Save button clicked, but the modal did not close. The site rejected the input.")
+            except Exception:
+                raise Exception("CRITICAL ERROR: Save button clicked, but the modal did not close. Check the debug screenshot in Monday!")
             
         time.sleep(6) 
         
@@ -163,7 +170,7 @@ def generate_dnake_qr(developer_name, item_id=None):
             WebDriverWait(driver, 5).until(EC.presence_of_element_located((By.XPATH, f"//td[contains(., '{developer_name}')]")))
             print(f"BINGO: User '{developer_name}' verified in table!")
         except:
-            raise Exception(f"CRITICAL ERROR: User '{developer_name}' was NOT created. Aborting process to prevent sending wrong QR.")
+            raise Exception(f"CRITICAL ERROR: User '{developer_name}' was NOT created. Check the debug screenshot in Monday!")
         
         print("Clicking topmost DETAILS button of the verified result...")
         top_details_btn_xpath = "(//tr[contains(@class, 'el-table__row')][1]//div[@class='btn-item'])[1]"
@@ -219,6 +226,23 @@ def generate_dnake_qr(developer_name, item_id=None):
         print("--- ERROR TRACEBACK ---")
         traceback.print_exc()
         print(f"Error Message: {str(e)}")
+        
+        # דיבאג חכם: אם הקוד קרס והכנו צילום מסך - נעלה אותו למאנדיי כדי שתראה מה קרה!
+        if item_id and os.path.exists("debug_after_save.png"):
+            print(">>> DEBUG: Uploading ERROR SCREENSHOT to Monday... <<<")
+            upload_url = "https://api.monday.com/v2/file"
+            headers = {"Authorization": MONDAY_API_TOKEN}
+            query = f'mutation ($file: File!) {{ add_file_to_column (item_id: {item_id}, column_id: "{FILE_COLUMN_ID}", file: $file) {{ id }} }}'
+            
+            try:
+                with open("debug_after_save.png", 'rb') as f:
+                    files = {'variables[file]': ("DEBUG_ERROR_SCREEN.png", f, 'image/png')}
+                    data = {'query': query}
+                    requests.post(upload_url, headers=headers, data=data, files=files, verify=False)
+                print("Debug screenshot sent to Monday successfully! Go check your board.")
+            except Exception as upload_err:
+                print(f"Failed to upload debug screenshot: {upload_err}")
+                
         return None
         
     finally:
