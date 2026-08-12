@@ -28,7 +28,6 @@ def generate_dnake_qr(developer_name, item_id=None):
     options.add_argument('--disable-dev-shm-usage')
     options.add_argument('--window-size=2560,1440')
     options.add_argument('--ignore-certificate-errors')
-    # הסוואת הרובוט - כדי שהאתר לא יחסום את השמירה בענן
     options.add_argument('--disable-blink-features=AutomationControlled')
     options.add_argument('user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36')
     
@@ -64,22 +63,17 @@ def generate_dnake_qr(developer_name, item_id=None):
         main_add_btn.click() 
         time.sleep(3)
         
-        print("Entering name letter-by-letter to force Vue.js detection...")
+        print("Entering name natively...")
         name_inputs = driver.find_elements(By.XPATH, "//input[@aria-label='Name']")
         for inp in name_inputs:
             if inp.is_displayed():
+                driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", inp)
+                time.sleep(0.5)
                 inp.click()
                 time.sleep(0.5)
-                # מחיקה יסודית
-                inp.send_keys(Keys.CONTROL + "a")
-                inp.send_keys(Keys.BACKSPACE)
+                inp.clear()
                 time.sleep(0.5)
-                
-                # הקלדה אות אחר אות כמו בן אדם אמיתי!
-                for char in developer_name:
-                    inp.send_keys(char)
-                    time.sleep(0.1) # השהייה קטנה בין כל אות
-                    
+                inp.send_keys(developer_name)
                 time.sleep(0.5)
                 inp.send_keys(Keys.TAB)
                 break
@@ -89,6 +83,8 @@ def generate_dnake_qr(developer_name, item_id=None):
         pin_btns = driver.find_elements(By.XPATH, "//button[contains(@class, 'setPinBtn')]")
         for btn in pin_btns:
             if btn.is_displayed():
+                driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", btn)
+                time.sleep(0.5)
                 driver.execute_script("arguments[0].click();", btn)
                 break
         time.sleep(2)
@@ -133,27 +129,39 @@ def generate_dnake_qr(developer_name, item_id=None):
         
         print("Saving User...")
         save_buttons = driver.find_elements(By.XPATH, "//button[.//span[contains(text(), 'Save')]]")
+        clicked_save_btn = None
+        
         for btn in save_buttons:
             if btn.is_displayed():
-                driver.execute_script("arguments[0].scrollIntoView(true);", btn)
+                # קריטי: גלילה לאמצע המסך!
+                driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", btn)
                 time.sleep(1)
                 try:
-                    btn.click() # לחיצה טבעית
+                    # שליחת אנטר על הכפתור כדי למנוע בעיות של חסימת לחיצה
+                    btn.send_keys(Keys.ENTER)
                 except:
                     driver.execute_script("arguments[0].click();", btn)
+                clicked_save_btn = btn
                 break
         
         print("Waiting for server to process save...")
-        time.sleep(8) 
+        if clicked_save_btn:
+            try:
+                WebDriverWait(driver, 10).until(EC.invisibility_of_element(clicked_save_btn))
+                print("Modal closed successfully. Save confirmed!")
+            except Exception as wait_e:
+                raise Exception("CRITICAL ERROR: Save button clicked, but the modal did not close. The site rejected the input.")
+            
+        time.sleep(6) 
         
         print(">>> VERIFICATION STEP: Checking if user was actually created! <<<")
         search_inputs = driver.find_elements(By.XPATH, "//input[@aria-label='Name' or contains(@placeholder, 'Name')]")
         for inp in search_inputs:
             if inp.is_displayed():
+                driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", inp)
+                time.sleep(0.5)
                 inp.clear()
-                for char in developer_name:
-                    inp.send_keys(char)
-                    time.sleep(0.05)
+                inp.send_keys(developer_name)
                 time.sleep(1)
                 inp.send_keys(Keys.ENTER)
                 break
@@ -171,7 +179,7 @@ def generate_dnake_qr(developer_name, item_id=None):
         details_btn = WebDriverWait(driver, 15).until(
             EC.presence_of_element_located((By.XPATH, top_details_btn_xpath))
         )
-        driver.execute_script("arguments[0].scrollIntoView(true);", details_btn)
+        driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", details_btn)
         time.sleep(1)
         driver.execute_script("arguments[0].click();", details_btn)
         
