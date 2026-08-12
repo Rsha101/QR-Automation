@@ -24,7 +24,8 @@ def generate_dnake_qr(developer_name, item_id=None):
     options.add_argument('--headless')
     options.add_argument('--no-sandbox')
     options.add_argument('--disable-dev-shm-usage')
-    options.add_argument('--window-size=1920,1080')
+    # הגדלת הרזולוציה למקסימום כדי ששום אלמנט לא יברח מהמסך
+    options.add_argument('--window-size=2560,1440')
     
     service = Service(ChromeDriverManager().install())
     driver = webdriver.Chrome(service=service, options=options)
@@ -63,15 +64,16 @@ def generate_dnake_qr(developer_name, item_id=None):
         driver.execute_script("arguments[0].dispatchEvent(new Event('input'));", name_input)
         driver.execute_script("arguments[0].dispatchEvent(new Event('change'));", name_input)
         
-        # --- תיקון אגרסיבי: חיפוש כל כפתור שמכיל את המילה PIN או Set ---
-        print("Clicking PIN button via broad search...")
+        # --- גלילה אל הכפתור ולחיצה בטוחה ---
+        print("Scrolling to and clicking setPinBtn...")
         time.sleep(2)
-        # מחפש כפתור שמכיל PIN או Set בכל מקום בטקסט או בקלאס
         pin_btn = WebDriverWait(driver, 15).until(
-            EC.element_to_be_clickable((By.XPATH, "//button[contains(translate(., 'PINSET', 'pinset'), 'pin') or contains(translate(., 'PINSET', 'pinset'), 'set')]"))
+            EC.presence_of_element_located((By.CLASS_NAME, "setPinBtn"))
         )
+        driver.execute_script("arguments[0].scrollIntoView(true);", pin_btn)
+        time.sleep(1)
         driver.execute_script("arguments[0].click();", pin_btn)
-        # ---------------------------------------------
+        # ------------------------------------
         
         driver.find_element(By.XPATH, "//div[contains(@class, 'pin-code-container')]/following-sibling::label//span[contains(@class, 'el-checkbox__inner')]").click()
         
@@ -81,10 +83,12 @@ def generate_dnake_qr(developer_name, item_id=None):
         driver.find_elements(By.XPATH, "//button[.//span[text()='OK']]")[-1].click()
         time.sleep(2)
         
-        # כפתור ה-SAVE המדויק
+        # כפתור ה-SAVE
+        print("Clicking Save button...")
         save_btn = WebDriverWait(driver, 15).until(
             EC.element_to_be_clickable((By.XPATH, "//button[contains(@class, 'primarybutton') and .//span[text()='Save']]"))
         )
+        driver.execute_script("arguments[0].scrollIntoView(true);", save_btn)
         driver.execute_script("arguments[0].click();", save_btn)
         
         print("User saved, waiting for table refresh...")
