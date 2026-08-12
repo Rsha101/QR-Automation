@@ -61,13 +61,14 @@ def generate_dnake_qr(developer_name, item_id=None):
         main_add_btn.click() 
         time.sleep(3)
         
-        print("Entering name natively...")
+        print("Entering name...")
         name_inputs = driver.find_elements(By.XPATH, "//input[@aria-label='Name']")
         for inp in name_inputs:
             if inp.is_displayed():
                 inp.click()
+                time.sleep(0.5)
                 inp.clear()
-                # הקלדה אמיתית בדיוק כמו שעבד בטסט המקומי!
+                time.sleep(0.5)
                 inp.send_keys(developer_name)
                 time.sleep(0.5)
                 inp.send_keys(Keys.TAB)
@@ -126,8 +127,10 @@ def generate_dnake_qr(developer_name, item_id=None):
         
         for btn in save_buttons:
             if btn.is_displayed():
+                driver.execute_script("arguments[0].scrollIntoView(true);", btn)
+                time.sleep(1)
                 try:
-                    ActionChains(driver).move_to_element(btn).click().perform()
+                    btn.click() # שימוש בלחיצת סלניום קלאסית שעובדת הכי טוב
                 except:
                     driver.execute_script("arguments[0].click();", btn)
                 clicked_save_btn = btn
@@ -136,26 +139,15 @@ def generate_dnake_qr(developer_name, item_id=None):
         print("Waiting for modal to close (confirming save)...")
         if clicked_save_btn:
             try:
+                # וידוא שהחלון נסגר בהצלחה
                 WebDriverWait(driver, 15).until(EC.invisibility_of_element(clicked_save_btn))
             except:
-                pass # ממשיכים בכל מקרה, למקרה שההמתנה קורסת
+                print("WARNING: Modal did not close. Save might have failed!")
             
-        print("User saved successfully! Filtering table to find the exact user...")
-        time.sleep(5) 
+        print("User saved successfully, waiting for table refresh...")
+        time.sleep(6) 
         
-        # חיפוש בטבלה כדי לבודד את המשתמש החדש שיצרנו
-        search_inputs = driver.find_elements(By.XPATH, "//input[@aria-label='Name' or contains(@placeholder, 'Name')]")
-        for inp in search_inputs:
-            if inp.is_displayed():
-                inp.clear()
-                inp.send_keys(developer_name)
-                time.sleep(1)
-                inp.send_keys(Keys.ENTER)
-                break
-                
-        time.sleep(4) 
-        
-        print("Clicking topmost DETAILS button of the filtered result...")
+        print("Clicking topmost DETAILS button...")
         top_details_btn_xpath = "(//tr[contains(@class, 'el-table__row')][1]//div[@class='btn-item'])[1]"
         details_btn = WebDriverWait(driver, 15).until(
             EC.presence_of_element_located((By.XPATH, top_details_btn_xpath))
