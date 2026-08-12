@@ -18,7 +18,8 @@ import traceback
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-def take_and_upload_screenshot(driver, step_name, item_id, token):
+def upload_step_screenshot(driver, step_name, item_id, token):
+    """פונקציה ששומרת ומעלה צילום מסך למאנדיי אחרי כל שלב כדי שנוכל לעקוב אחרי כל פעולה"""
     if not item_id:
         return
     filename = f"{step_name}.png"
@@ -32,9 +33,9 @@ def take_and_upload_screenshot(driver, step_name, item_id, token):
             files = {'variables[file]': (filename, f, 'image/png')}
             data = {'query': query}
             requests.post(upload_url, headers=headers, data=data, files=files, verify=False)
-        print(f"DEBUG: Screenshot '{step_name}' uploaded to Monday successfully.")
+        print(f"DEBUG STEP: Screenshot '{step_name}' uploaded to Monday.")
     except Exception as e:
-        print(f"Failed to upload screenshot {step_name}: {e}")
+        print(f"Failed to upload step screenshot {step_name}: {e}")
 
 def generate_dnake_qr(developer_name, item_id=None):
     MONDAY_API_TOKEN = "eyJhbGciOiJIUzI1NiJ9.eyJ0aWQiOjYyMzIxMjUxOSwiYWFpIjoxMSwidWlkIjo5NzYwMTM1NywiaWFkIjoiMjAyNi0wMi0xOVQwOTowODozMS4wMDBaIiwicGVyIjoibWU6d3JpdGUiLCJhY3RpZCI6MjkzNzUzNDYsInJnbiI6ImV1YzEifQ.EsITDIb08RaofyL9eIJae6eFJ_zBUiOBeCugjSMqoDE"
@@ -62,6 +63,8 @@ def generate_dnake_qr(developer_name, item_id=None):
         driver.find_element(By.CLASS_NAME, "v2-login-button").click()
         
         print("Logged in, navigating to Person List...")
+        upload_step_screenshot(driver, "step_1_logged_in", item_id, MONDAY_API_TOKEN)
+        
         site_menu = WebDriverWait(driver, 20).until(EC.presence_of_element_located((By.XPATH, "//a[@href='/siteManage/site']")))
         ActionChains(driver).move_to_element(site_menu).perform()
         time.sleep(2) 
@@ -69,14 +72,16 @@ def generate_dnake_qr(developer_name, item_id=None):
         person_menu = WebDriverWait(driver, 20).until(EC.presence_of_element_located((By.XPATH, "//a[@href='/accessManage/personList']")))
         driver.execute_script("arguments[0].click();", person_menu)
         time.sleep(5)
+        upload_step_screenshot(driver, "step_2_person_list", item_id, MONDAY_API_TOKEN)
         
         print("Clicking Customized tab...")
         customized_tab = WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.ID, "tab-customized")))
         driver.execute_script("arguments[0].click();", customized_tab)
         time.sleep(3)
+        upload_step_screenshot(driver, "step_3_customized_tab", item_id, MONDAY_API_TOKEN)
         
-        print("Clicking Add button using exact HTML path...")
-        # שימוש במיקום המדויק לפי ה-HTML: בתוך pane-customized, מתחת ל-operation, כפתור primary בלבד
+        print("Clicking Add button...")
+        # שימוש בסלקטור מדויק לכפתור ה-Add תחת Customized
         add_btn_xpath = "//div[@id='pane-customized']//div[@class='operation']//button[contains(@class, 'primary') and not(contains(@class, 'secondary'))]"
         main_add_btn = WebDriverWait(driver, 15).until(
             EC.element_to_be_clickable((By.XPATH, add_btn_xpath))
@@ -85,6 +90,9 @@ def generate_dnake_qr(developer_name, item_id=None):
         time.sleep(1)
         driver.execute_script("arguments[0].click();", main_add_btn)
         time.sleep(3)
+        
+        # צילום מסך קריטי - לבדוק האם חלון הוספת משתמש נפתח!
+        upload_step_screenshot(driver, "step_4_after_add_click", item_id, MONDAY_API_TOKEN)
         
         print("Entering name natively...")
         name_inputs = driver.find_elements(By.XPATH, "//input[@aria-label='Name']")
@@ -99,6 +107,7 @@ def generate_dnake_qr(developer_name, item_id=None):
                 inp.send_keys(Keys.TAB)
                 break
         time.sleep(1)
+        upload_step_screenshot(driver, "step_5_name_entered", item_id, MONDAY_API_TOKEN)
         
         print("Clicking setPinBtn...")
         pin_btns = driver.find_elements(By.XPATH, "//button[contains(@class, 'setPinBtn')]")
@@ -107,6 +116,7 @@ def generate_dnake_qr(developer_name, item_id=None):
                 driver.execute_script("arguments[0].click();", btn)
                 break
         time.sleep(2)
+        upload_step_screenshot(driver, "step_6_pin_clicked", item_id, MONDAY_API_TOKEN)
         
         print("Checking QR Checkbox...")
         qr_checkboxes = driver.find_elements(By.XPATH, "//div[contains(@class, 'pin-code-container')]/following-sibling::label//span[contains(@class, 'el-checkbox__inner')]")
@@ -115,6 +125,7 @@ def generate_dnake_qr(developer_name, item_id=None):
                 driver.execute_script("arguments[0].click();", cb)
                 break
         time.sleep(1)
+        upload_step_screenshot(driver, "step_7_qr_checked", item_id, MONDAY_API_TOKEN)
         
         print("Adding Access Rule...")
         access_add_btns = driver.find_elements(By.XPATH, "//button[contains(@class, 'secondary') and .//span[contains(text(), 'Add')]]")
@@ -124,6 +135,7 @@ def generate_dnake_qr(developer_name, item_id=None):
                 break
                 
         time.sleep(4) 
+        upload_step_screenshot(driver, "step_8_access_modal_opened", item_id, MONDAY_API_TOKEN)
         
         print("Selecting 'יזמים'...")
         WebDriverWait(driver, 20).until(
@@ -136,6 +148,7 @@ def generate_dnake_qr(developer_name, item_id=None):
                 driver.execute_script("arguments[0].click();", cb)
                 break
         time.sleep(1)
+        upload_step_screenshot(driver, "step_9_yazamim_selected", item_id, MONDAY_API_TOKEN)
         
         print("Clicking OK for access rule...")
         ok_buttons = driver.find_elements(By.XPATH, "//div[@aria-label='Select from Access Rule']//button[.//span[text()='OK']]")
@@ -145,6 +158,7 @@ def generate_dnake_qr(developer_name, item_id=None):
                 break
                 
         time.sleep(5) 
+        upload_step_screenshot(driver, "step_10_access_rule_ok", item_id, MONDAY_API_TOKEN)
         
         print("Saving User...")
         save_buttons = driver.find_elements(By.XPATH, "//button[.//span[contains(text(), 'Save')]]")
@@ -165,6 +179,7 @@ def generate_dnake_qr(developer_name, item_id=None):
             raise Exception("CRITICAL ERROR: Save button was not found or is hidden!")
             
         time.sleep(6) 
+        upload_step_screenshot(driver, "step_11_after_save", item_id, MONDAY_API_TOKEN)
         
         print(">>> VERIFICATION STEP: Checking if user was actually created! <<<")
         search_inputs = driver.find_elements(By.XPATH, "//input[@aria-label='Name' or contains(@placeholder, 'Name')]")
@@ -177,6 +192,7 @@ def generate_dnake_qr(developer_name, item_id=None):
                 break
                 
         time.sleep(4) 
+        upload_step_screenshot(driver, "step_12_search_verification", item_id, MONDAY_API_TOKEN)
         
         try:
             WebDriverWait(driver, 5).until(EC.presence_of_element_located((By.XPATH, f"//td[contains(., '{developer_name}')]")))
@@ -194,6 +210,7 @@ def generate_dnake_qr(developer_name, item_id=None):
         driver.execute_script("arguments[0].click();", details_btn)
         
         time.sleep(4) 
+        upload_step_screenshot(driver, "step_13_details_opened", item_id, MONDAY_API_TOKEN)
         
         print("Extracting QR Image...")
         qr_img_xpath = "//div[contains(@class, 'info-value')]//img[contains(@src, 'base64')]"
@@ -239,7 +256,7 @@ def generate_dnake_qr(developer_name, item_id=None):
         traceback.print_exc()
         error_msg = str(e)
         print(f"Error Message: {error_msg}")
-        take_and_upload_screenshot(driver, "CRASH_ERROR_SCREEN", item_id, MONDAY_API_TOKEN)
+        upload_step_screenshot(driver, "Z_CRASH_ERROR_SCREEN", item_id, MONDAY_API_TOKEN)
         return None
         
     finally:
