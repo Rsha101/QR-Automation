@@ -76,10 +76,19 @@ def generate_dnake_qr(developer_name, item_id=None):
         print("Clicking Customized tab...")
         customized_tab = WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.ID, "tab-customized")))
         driver.execute_script("arguments[0].click();", customized_tab)
-        time.sleep(3)
+        
+        # המתנה עד שכל מסכות הטעינה של האתר ייעלמו לחלוטין ויפסיקו לחסום לחיצות
+        try:
+            WebDriverWait(driver, 10).until_not(
+                EC.presence_of_element_located((By.CLASS_NAME, "el-loading-mask"))
+            )
+        except:
+            pass
+            
+        time.sleep(2)
         upload_step_screenshot(driver, "step_3_customized_tab", item_id, MONDAY_API_TOKEN)
         
-        print("Clicking Add button using Hover + Enter key...")
+        print("Clicking Add button safely (bypassing overlays)...")
         add_btn_xpath = "//div[@id='pane-customized']//button[.//span[contains(text(), 'Add')]]"
         modal_opened = False
         
@@ -89,14 +98,16 @@ def generate_dnake_qr(developer_name, item_id=None):
                 driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", main_add_btn)
                 time.sleep(1)
                 
-                ActionChains(driver).move_to_element(main_add_btn).pause(0.5).send_keys(Keys.RETURN).perform()
+                # לחיצת ג'אווה-סקריפט ישירה שעוקפת כל חסימת שכבה שקופה
+                driver.execute_script("arguments[0].click();", main_add_btn)
                 
+                # בדיקה האם החלון נפתח בהצלחה
                 WebDriverWait(driver, 3).until(EC.presence_of_element_located((By.XPATH, "//input[@aria-label='Name']")))
                 modal_opened = True
-                print("Modal opened successfully with Enter key!")
+                print("Modal opened successfully!")
                 break 
-            except:
-                print(f"Attempt {attempt+1} failed, retrying...")
+            except Exception as click_err:
+                print(f"Attempt {attempt+1} failed: {click_err}, retrying...")
                 time.sleep(2)
         
         if not modal_opened:
