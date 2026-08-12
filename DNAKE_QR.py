@@ -79,7 +79,7 @@ def generate_dnake_qr(developer_name, item_id=None):
         time.sleep(3)
         upload_step_screenshot(driver, "step_3_customized_tab", item_id, MONDAY_API_TOKEN)
         
-        print("Hovering and clicking Add button (Hover + JS Click combo)...")
+        print("Forcing Add button click with MouseEvent simulation...")
         add_btn_xpath = "//div[@id='pane-customized']//button[.//span[contains(text(), 'Add')]]"
         main_add_btn = WebDriverWait(driver, 15).until(
             EC.element_to_be_clickable((By.XPATH, add_btn_xpath))
@@ -87,10 +87,16 @@ def generate_dnake_qr(developer_name, item_id=None):
         driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", main_add_btn)
         time.sleep(1)
         
-        # שילוב מנצח: מרחפים עם העכבר (Hover) כדי להדליק את הכפתור, ואז לוחצים עליו ב-JS בזמן שהוא מואר!
-        ActionChains(driver).move_to_element(main_add_btn).pause(0.5).perform()
-        time.sleep(0.5)
-        driver.execute_script("arguments[0].click();", main_add_btn)
+        # לחיצה אגרסיבית שמדמה פעולה אנושית מלאה
+        driver.execute_script("""
+            var el = arguments[0];
+            el.focus();
+            ['mouseover', 'mousedown', 'mouseup', 'click'].forEach(function(e) {
+                var ev = document.createEvent('MouseEvent');
+                ev.initMouseEvent(e, true, true, window, 0, 0, 0, 0, 0, false, false, false, false, 0, null);
+                el.dispatchEvent(ev);
+            });
+        """, main_add_btn)
             
         print("Waiting for modal to open...")
         # וידוא קשיח: המתנה עד ששדה השם בחלון הקופץ אכן יופיע במסך!
