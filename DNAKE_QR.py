@@ -19,7 +19,6 @@ import traceback
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 def take_and_upload_screenshot(driver, step_name, item_id, token):
-    """פונקציה שצונחת, שומרת ומעלה תמונה למאנדיי במקרה של בעיה או שלב קריטי"""
     if not item_id:
         return
     filename = f"{step_name}.png"
@@ -76,10 +75,11 @@ def generate_dnake_qr(developer_name, item_id=None):
         driver.execute_script("arguments[0].click();", customized_tab)
         time.sleep(3)
         
-        print("Clicking Add button using robust HTML selector...")
-        # שימוש ב-normalize-space כדי לתפוס את כפתור ה-Add בוודאות מלאה לפי ה-HTML
+        print("Clicking Add button using exact HTML path...")
+        # שימוש במיקום המדויק לפי ה-HTML: בתוך pane-customized, מתחת ל-operation, כפתור primary בלבד
+        add_btn_xpath = "//div[@id='pane-customized']//div[@class='operation']//button[contains(@class, 'primary') and not(contains(@class, 'secondary'))]"
         main_add_btn = WebDriverWait(driver, 15).until(
-            EC.element_to_be_clickable((By.XPATH, "//button[.//span[normalize-space()='Add']]"))
+            EC.element_to_be_clickable((By.XPATH, add_btn_xpath))
         )
         driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", main_add_btn)
         time.sleep(1)
@@ -239,8 +239,6 @@ def generate_dnake_qr(developer_name, item_id=None):
         traceback.print_exc()
         error_msg = str(e)
         print(f"Error Message: {error_msg}")
-        
-        # תפסנו שגיאה? מיד צלם את המסך ושלח למאנדיי כדי שנראה מה קרה ברגע הנפילה!
         take_and_upload_screenshot(driver, "CRASH_ERROR_SCREEN", item_id, MONDAY_API_TOKEN)
         return None
         
