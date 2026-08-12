@@ -18,6 +18,25 @@ import traceback
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
+def take_and_upload_screenshot(driver, step_name, item_id, token):
+    """פונקציה שצונחת, שומרת ומעלה תמונה למאנדיי במקרה של בעיה או שלב קריטי"""
+    if not item_id:
+        return
+    filename = f"{step_name}.png"
+    try:
+        driver.save_screenshot(filename)
+        upload_url = "https://api.monday.com/v2/file"
+        headers = {"Authorization": token}
+        query = f'mutation ($file: File!) {{ add_file_to_column (item_id: {item_id}, column_id: "file_mm64npqq", file: $file) {{ id }} }}'
+        
+        with open(filename, 'rb') as f:
+            files = {'variables[file]': (filename, f, 'image/png')}
+            data = {'query': query}
+            requests.post(upload_url, headers=headers, data=data, files=files, verify=False)
+        print(f"DEBUG: Screenshot '{step_name}' uploaded to Monday successfully.")
+    except Exception as e:
+        print(f"Failed to upload screenshot {step_name}: {e}")
+
 def generate_dnake_qr(developer_name, item_id=None):
     MONDAY_API_TOKEN = "eyJhbGciOiJIUzI1NiJ9.eyJ0aWQiOjYyMzIxMjUxOSwiYWFpIjoxMSwidWlkIjo5NzYwMTM1NywiaWFkIjoiMjAyNi0wMi0xOVQwOTowODozMS4wMDBaIiwicGVyIjoibWU6d3JpdGUiLCJhY3RpZCI6MjkzNzUzNDYsInJnbiI6ImV1YzEifQ.EsITDIb08RaofyL9eIJae6eFJ_zBUiOBeCugjSMqoDE"
     FILE_COLUMN_ID = "file_mm64npqq"
@@ -57,10 +76,10 @@ def generate_dnake_qr(developer_name, item_id=None):
         driver.execute_script("arguments[0].click();", customized_tab)
         time.sleep(3)
         
-        print("Clicking Add button using exact HTML selector...")
-        # שימוש בסלקטור המדויק מתוך ה-HTML ששלחת
+        print("Clicking Add button using robust HTML selector...")
+        # שימוש ב-normalize-space כדי לתפוס את כפתור ה-Add בוודאות מלאה לפי ה-HTML
         main_add_btn = WebDriverWait(driver, 15).until(
-            EC.element_to_be_clickable((By.XPATH, "//div[@class='operation']//button[contains(@class, 'primary') and .//span[text()='Add']]"))
+            EC.element_to_be_clickable((By.XPATH, "//button[.//span[normalize-space()='Add']]"))
         )
         driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", main_add_btn)
         time.sleep(1)
@@ -218,7 +237,11 @@ def generate_dnake_qr(developer_name, item_id=None):
     except Exception as e:
         print("--- ERROR TRACEBACK ---")
         traceback.print_exc()
-        print(f"Error Message: {str(e)}")
+        error_msg = str(e)
+        print(f"Error Message: {error_msg}")
+        
+        # תפסנו שגיאה? מיד צלם את המסך ושלח למאנדיי כדי שנראה מה קרה ברגע הנפילה!
+        take_and_upload_screenshot(driver, "CRASH_ERROR_SCREEN", item_id, MONDAY_API_TOKEN)
         return None
         
     finally:
