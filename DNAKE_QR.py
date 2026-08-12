@@ -90,15 +90,25 @@ def generate_dnake_qr(developer_name, item_id=None):
             if btn.is_displayed():
                 driver.execute_script("arguments[0].click();", btn)
                 break
-        time.sleep(2) 
+                
+        # --- התיקון שלנו: נותנים לענן יותר זמן לטעון את הרשימה הפנימית ---
+        time.sleep(4) 
         
         print("Selecting 'יזמים'...")
-        yazamim_checkbox = WebDriverWait(driver, 10).until(
-            EC.presence_of_element_located((By.XPATH, "//tr[.//td[contains(., 'יזמים')]]//span[contains(@class, 'el-checkbox__inner')]"))
+        # מחכים עד 20 שניות שהטבלה הפנימית בכלל תופיע ב-DOM
+        WebDriverWait(driver, 20).until(
+            EC.presence_of_element_located((By.XPATH, "//tr[.//td[contains(., 'יזמים')]]"))
         )
-        driver.execute_script("arguments[0].click();", yazamim_checkbox)
-        time.sleep(1)
         
+        yazamim_checkboxes = driver.find_elements(By.XPATH, "//tr[.//td[contains(., 'יזמים')]]//span[contains(@class, 'el-checkbox__inner')]")
+        for cb in yazamim_checkboxes:
+            if cb.is_displayed():
+                driver.execute_script("arguments[0].click();", cb)
+                break
+        time.sleep(1)
+        # -----------------------------------------------------------------
+        
+        print("Clicking OK for access rule...")
         ok_buttons = driver.find_elements(By.XPATH, "//div[@aria-label='Select from Access Rule']//button[.//span[text()='OK']]")
         for btn in ok_buttons:
             if btn.is_displayed():
