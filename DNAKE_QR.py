@@ -79,30 +79,31 @@ def generate_dnake_qr(developer_name, item_id=None):
         time.sleep(3)
         upload_step_screenshot(driver, "step_3_customized_tab", item_id, MONDAY_API_TOKEN)
         
-        print("Forcing Add button click with MouseEvent simulation...")
+        print("Clicking Add button with retry logic...")
         add_btn_xpath = "//div[@id='pane-customized']//button[.//span[contains(text(), 'Add')]]"
-        main_add_btn = WebDriverWait(driver, 15).until(
-            EC.element_to_be_clickable((By.XPATH, add_btn_xpath))
-        )
-        driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", main_add_btn)
-        time.sleep(1)
+        modal_opened = False
+        for attempt in range(3):
+            try:
+                main_add_btn = WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.XPATH, add_btn_xpath)))
+                driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", main_add_btn)
+                time.sleep(1)
+                try:
+                    main_add_btn.click()
+                except:
+                    driver.execute_script("arguments[0].click();", main_add_btn)
+                
+                # בדיקה האם החלון נפתח
+                WebDriverWait(driver, 3).until(EC.presence_of_element_located((By.XPATH, "//input[@aria-label='Name']")))
+                modal_opened = True
+                print("Modal opened successfully!")
+                break 
+            except:
+                print(f"Attempt {attempt+1} failed, retrying...")
+                time.sleep(2)
         
-        # לחיצה אגרסיבית שמדמה פעולה אנושית מלאה
-        driver.execute_script("""
-            var el = arguments[0];
-            el.focus();
-            ['mouseover', 'mousedown', 'mouseup', 'click'].forEach(function(e) {
-                var ev = document.createEvent('MouseEvent');
-                ev.initMouseEvent(e, true, true, window, 0, 0, 0, 0, 0, false, false, false, false, 0, null);
-                el.dispatchEvent(ev);
-            });
-        """, main_add_btn)
-            
-        print("Waiting for modal to open...")
-        # וידוא קשיח: המתנה עד ששדה השם בחלון הקופץ אכן יופיע במסך!
-        WebDriverWait(driver, 10).until(
-            EC.presence_of_element_located((By.XPATH, "//input[@aria-label='Name']"))
-        )
+        if not modal_opened:
+            raise Exception("CRITICAL ERROR: Failed to open Add Modal after 3 attempts.")
+
         upload_step_screenshot(driver, "step_4_modal_opened", item_id, MONDAY_API_TOKEN)
         
         print("Entering name natively...")
