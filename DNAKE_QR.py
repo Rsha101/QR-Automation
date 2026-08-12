@@ -79,23 +79,21 @@ def generate_dnake_qr(developer_name, item_id=None):
         time.sleep(3)
         upload_step_screenshot(driver, "step_3_customized_tab", item_id, MONDAY_API_TOKEN)
         
-        print("Clicking Add button with retry logic...")
+        print("Clicking Add button using Hover + Enter key...")
         add_btn_xpath = "//div[@id='pane-customized']//button[.//span[contains(text(), 'Add')]]"
         modal_opened = False
+        
         for attempt in range(3):
             try:
                 main_add_btn = WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.XPATH, add_btn_xpath)))
                 driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", main_add_btn)
                 time.sleep(1)
-                try:
-                    main_add_btn.click()
-                except:
-                    driver.execute_script("arguments[0].click();", main_add_btn)
                 
-                # בדיקה האם החלון נפתח
+                ActionChains(driver).move_to_element(main_add_btn).pause(0.5).send_keys(Keys.RETURN).perform()
+                
                 WebDriverWait(driver, 3).until(EC.presence_of_element_located((By.XPATH, "//input[@aria-label='Name']")))
                 modal_opened = True
-                print("Modal opened successfully!")
+                print("Modal opened successfully with Enter key!")
                 break 
             except:
                 print(f"Attempt {attempt+1} failed, retrying...")
