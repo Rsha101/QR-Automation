@@ -132,6 +132,12 @@ def generate_dnake_qr(developer_name, item_id=None):
             if btn.is_displayed():
                 driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", btn)
                 time.sleep(1)
+                
+                # === צילום מסך לצורכי דיבאג *לפני* השמירה ===
+                print(">>> DEBUG: Taking screenshot BEFORE clicking Save... <<<")
+                driver.save_screenshot("debug_before_save.png")
+                # ========================================================
+                
                 try:
                     btn.click() 
                 except:
@@ -140,17 +146,12 @@ def generate_dnake_qr(developer_name, item_id=None):
                 break
         
         print("Waiting for modal to close (confirming save)...")
-        time.sleep(3)
-        # === צילום מסך לצורכי דיבאג ===
-        driver.save_screenshot("debug_after_save.png")
-        # ===============================
-        
         if clicked_save_btn:
             try:
                 WebDriverWait(driver, 7).until(EC.invisibility_of_element(clicked_save_btn))
                 print("Modal closed successfully. Save confirmed!")
             except Exception:
-                raise Exception("CRITICAL ERROR: Save button clicked, but the modal did not close. Check the debug screenshot in Monday!")
+                raise Exception("CRITICAL ERROR: Save button clicked, but the modal did not close.")
             
         time.sleep(6) 
         
@@ -227,16 +228,16 @@ def generate_dnake_qr(developer_name, item_id=None):
         traceback.print_exc()
         print(f"Error Message: {str(e)}")
         
-        # דיבאג חכם: אם הקוד קרס והכנו צילום מסך - נעלה אותו למאנדיי כדי שתראה מה קרה!
-        if item_id and os.path.exists("debug_after_save.png"):
-            print(">>> DEBUG: Uploading ERROR SCREENSHOT to Monday... <<<")
+        # דיבאג חכם: נעלה את התמונה של *לפני* השמירה למאנדיי
+        if item_id and os.path.exists("debug_before_save.png"):
+            print(">>> DEBUG: Uploading ERROR SCREENSHOT (Before Save) to Monday... <<<")
             upload_url = "https://api.monday.com/v2/file"
             headers = {"Authorization": MONDAY_API_TOKEN}
             query = f'mutation ($file: File!) {{ add_file_to_column (item_id: {item_id}, column_id: "{FILE_COLUMN_ID}", file: $file) {{ id }} }}'
             
             try:
-                with open("debug_after_save.png", 'rb') as f:
-                    files = {'variables[file]': ("DEBUG_ERROR_SCREEN.png", f, 'image/png')}
+                with open("debug_before_save.png", 'rb') as f:
+                    files = {'variables[file]': ("DEBUG_BEFORE_SAVE.png", f, 'image/png')}
                     data = {'query': query}
                     requests.post(upload_url, headers=headers, data=data, files=files, verify=False)
                 print("Debug screenshot sent to Monday successfully! Go check your board.")
