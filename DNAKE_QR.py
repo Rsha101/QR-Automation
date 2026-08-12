@@ -29,6 +29,8 @@ def generate_dnake_qr(developer_name, item_id=None):
     options.add_argument('--window-size=2560,1440')
     options.add_argument('--ignore-certificate-errors')
     options.add_argument('--disable-blink-features=AutomationControlled')
+    # הכרחת אנגלית למקרה שהשרת בחו"ל משנה שפה
+    options.add_argument('--lang=en-US') 
     options.add_argument('user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36')
     
     service = Service(ChromeDriverManager().install())
@@ -67,8 +69,6 @@ def generate_dnake_qr(developer_name, item_id=None):
         name_inputs = driver.find_elements(By.XPATH, "//input[@aria-label='Name']")
         for inp in name_inputs:
             if inp.is_displayed():
-                driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", inp)
-                time.sleep(0.5)
                 inp.click()
                 time.sleep(0.5)
                 inp.clear()
@@ -83,8 +83,6 @@ def generate_dnake_qr(developer_name, item_id=None):
         pin_btns = driver.find_elements(By.XPATH, "//button[contains(@class, 'setPinBtn')]")
         for btn in pin_btns:
             if btn.is_displayed():
-                driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", btn)
-                time.sleep(0.5)
                 driver.execute_script("arguments[0].click();", btn)
                 break
         time.sleep(2)
@@ -125,7 +123,8 @@ def generate_dnake_qr(developer_name, item_id=None):
                 driver.execute_script("arguments[0].click();", btn)
                 break
                 
-        time.sleep(3) 
+        # המתנה ארוכה כדי לתת לאנימציה של החלון הפנימי להיעלם לגמרי!
+        time.sleep(5) 
         
         print("Saving User...")
         save_buttons = driver.find_elements(By.XPATH, "//button[.//span[contains(text(), 'Save')]]")
@@ -133,18 +132,12 @@ def generate_dnake_qr(developer_name, item_id=None):
         
         for btn in save_buttons:
             if btn.is_displayed():
-                # קריטי: גלילה לאמצע המסך!
-                driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", btn)
-                time.sleep(1)
-                try:
-                    # שליחת אנטר על הכפתור כדי למנוע בעיות של חסימת לחיצה
-                    btn.send_keys(Keys.ENTER)
-                except:
-                    driver.execute_script("arguments[0].click();", btn)
+                # לחיצת ג'אווה סקריפט ישירה שמתעלמת מאנימציות ומשכבות שמסתירות את הכפתור
+                driver.execute_script("arguments[0].click();", btn)
                 clicked_save_btn = btn
                 break
         
-        print("Waiting for server to process save...")
+        print("Waiting for modal to close (confirming save)...")
         if clicked_save_btn:
             try:
                 WebDriverWait(driver, 10).until(EC.invisibility_of_element(clicked_save_btn))
@@ -158,8 +151,6 @@ def generate_dnake_qr(developer_name, item_id=None):
         search_inputs = driver.find_elements(By.XPATH, "//input[@aria-label='Name' or contains(@placeholder, 'Name')]")
         for inp in search_inputs:
             if inp.is_displayed():
-                driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", inp)
-                time.sleep(0.5)
                 inp.clear()
                 inp.send_keys(developer_name)
                 time.sleep(1)
