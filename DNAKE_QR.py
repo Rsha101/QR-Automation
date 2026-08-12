@@ -86,24 +86,23 @@ def generate_dnake_qr(developer_name, item_id=None):
         time.sleep(2)
         upload_step_screenshot(driver, "step_3_customized_tab", item_id, MONDAY_API_TOKEN)
         
-        print("Targeting the SPAN inside Add button for direct click...")
-        # במקום ללחוץ על ה-Button, נלחץ ישירות על הטקסט "Add" בתוך ה-Span
-        add_span_xpath = "//div[@id='pane-customized']//button[contains(@class, 'primary')]//span[contains(text(), 'Add')]"
+        print("Clicking Add button using Offset Click (Bypassing overlays)...")
+        add_btn_xpath = "//div[@id='pane-customized']//button[.//span[contains(text(), 'Add')]]"
         modal_opened = False
         
         for attempt in range(3):
             try:
-                main_add_span = WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.XPATH, add_span_xpath)))
-                driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", main_add_span)
+                main_add_btn = WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.XPATH, add_btn_xpath)))
+                driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", main_add_btn)
                 time.sleep(1)
                 
-                # לחיצה ישירות על ה-Span
-                driver.execute_script("arguments[0].click();", main_add_span)
+                # לחיצה עם היסט (Offset) בפינת הכפתור - עוקף חסימות מרכזיות
+                ActionChains(driver).move_to_element_with_offset(main_add_btn, 5, 5).click().perform()
                 
-                # בדיקה האם החלון נפתח
+                # בדיקה האם החלון נפתח בהצלחה
                 WebDriverWait(driver, 3).until(EC.presence_of_element_located((By.XPATH, "//input[@aria-label='Name']")))
                 modal_opened = True
-                print("Modal opened successfully by clicking Span!")
+                print("Modal opened successfully by offset click!")
                 break 
             except Exception as e:
                 print(f"Attempt {attempt+1} failed: {e}")
