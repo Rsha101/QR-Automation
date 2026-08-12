@@ -91,11 +91,9 @@ def generate_dnake_qr(developer_name, item_id=None):
                 driver.execute_script("arguments[0].click();", btn)
                 break
                 
-        # --- התיקון שלנו: נותנים לענן יותר זמן לטעון את הרשימה הפנימית ---
         time.sleep(4) 
         
         print("Selecting 'יזמים'...")
-        # מחכים עד 20 שניות שהטבלה הפנימית בכלל תופיע ב-DOM
         WebDriverWait(driver, 20).until(
             EC.presence_of_element_located((By.XPATH, "//tr[.//td[contains(., 'יזמים')]]"))
         )
@@ -106,7 +104,6 @@ def generate_dnake_qr(developer_name, item_id=None):
                 driver.execute_script("arguments[0].click();", cb)
                 break
         time.sleep(1)
-        # -----------------------------------------------------------------
         
         print("Clicking OK for access rule...")
         ok_buttons = driver.find_elements(By.XPATH, "//div[@aria-label='Select from Access Rule']//button[.//span[text()='OK']]")
@@ -114,14 +111,21 @@ def generate_dnake_qr(developer_name, item_id=None):
             if btn.is_displayed():
                 driver.execute_script("arguments[0].click();", btn)
                 break
-        time.sleep(2)
-        
+                
+        # --- התיקון: המתנה לסגירת החלון, ולחיצה אמיתית על כפתור השמירה ---
+        time.sleep(3) 
         print("Saving User...")
         save_buttons = driver.find_elements(By.XPATH, "//button[.//span[contains(text(), 'Save')]]")
         for btn in save_buttons:
             if btn.is_displayed():
-                driver.execute_script("arguments[0].click();", btn)
+                driver.execute_script("arguments[0].scrollIntoView(true);", btn)
+                time.sleep(1)
+                try:
+                    btn.click() # לחיצה טבעית שנקלטת על ידי האתר
+                except:
+                    driver.execute_script("arguments[0].click();", btn) # גיבוי
                 break
+        # ------------------------------------------------------------------
         
         print("User saved, waiting for table refresh...")
         time.sleep(8) 
