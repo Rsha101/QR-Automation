@@ -77,37 +77,36 @@ def generate_dnake_qr(developer_name, item_id=None):
         customized_tab = WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.ID, "tab-customized")))
         driver.execute_script("arguments[0].click();", customized_tab)
         
-        # המתנה עד שכל מסכות הטעינה של האתר ייעלמו לחלוטין ויפסיקו לחסום לחיצות
+        # ניקוי מסכות טעינה
         try:
-            WebDriverWait(driver, 10).until_not(
-                EC.presence_of_element_located((By.CLASS_NAME, "el-loading-mask"))
-            )
+            WebDriverWait(driver, 5).until_not(EC.presence_of_element_located((By.CLASS_NAME, "el-loading-mask")))
         except:
             pass
             
         time.sleep(2)
         upload_step_screenshot(driver, "step_3_customized_tab", item_id, MONDAY_API_TOKEN)
         
-        print("Clicking Add button safely (bypassing overlays)...")
-        add_btn_xpath = "//div[@id='pane-customized']//button[.//span[contains(text(), 'Add')]]"
+        print("Targeting the SPAN inside Add button for direct click...")
+        # במקום ללחוץ על ה-Button, נלחץ ישירות על הטקסט "Add" בתוך ה-Span
+        add_span_xpath = "//div[@id='pane-customized']//button[contains(@class, 'primary')]//span[contains(text(), 'Add')]"
         modal_opened = False
         
         for attempt in range(3):
             try:
-                main_add_btn = WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.XPATH, add_btn_xpath)))
-                driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", main_add_btn)
+                main_add_span = WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.XPATH, add_span_xpath)))
+                driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", main_add_span)
                 time.sleep(1)
                 
-                # לחיצת ג'אווה-סקריפט ישירה שעוקפת כל חסימת שכבה שקופה
-                driver.execute_script("arguments[0].click();", main_add_btn)
+                # לחיצה ישירות על ה-Span
+                driver.execute_script("arguments[0].click();", main_add_span)
                 
-                # בדיקה האם החלון נפתח בהצלחה
+                # בדיקה האם החלון נפתח
                 WebDriverWait(driver, 3).until(EC.presence_of_element_located((By.XPATH, "//input[@aria-label='Name']")))
                 modal_opened = True
-                print("Modal opened successfully!")
+                print("Modal opened successfully by clicking Span!")
                 break 
-            except Exception as click_err:
-                print(f"Attempt {attempt+1} failed: {click_err}, retrying...")
+            except Exception as e:
+                print(f"Attempt {attempt+1} failed: {e}")
                 time.sleep(2)
         
         if not modal_opened:
