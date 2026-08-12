@@ -13,6 +13,7 @@ import time
 import base64
 import requests
 import urllib3
+import traceback
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
@@ -24,7 +25,6 @@ def generate_dnake_qr(developer_name, item_id=None):
     options.add_argument('--headless')
     options.add_argument('--no-sandbox')
     options.add_argument('--disable-dev-shm-usage')
-    # הגדלת הרזולוציה למקסימום כדי ששום אלמנט לא יברח מהמסך
     options.add_argument('--window-size=2560,1440')
     
     service = Service(ChromeDriverManager().install())
@@ -64,7 +64,6 @@ def generate_dnake_qr(developer_name, item_id=None):
         driver.execute_script("arguments[0].dispatchEvent(new Event('input'));", name_input)
         driver.execute_script("arguments[0].dispatchEvent(new Event('change'));", name_input)
         
-        # --- גלילה אל הכפתור ולחיצה בטוחה ---
         print("Scrolling to and clicking setPinBtn...")
         time.sleep(2)
         pin_btn = WebDriverWait(driver, 15).until(
@@ -73,7 +72,6 @@ def generate_dnake_qr(developer_name, item_id=None):
         driver.execute_script("arguments[0].scrollIntoView(true);", pin_btn)
         time.sleep(1)
         driver.execute_script("arguments[0].click();", pin_btn)
-        # ------------------------------------
         
         driver.find_element(By.XPATH, "//div[contains(@class, 'pin-code-container')]/following-sibling::label//span[contains(@class, 'el-checkbox__inner')]").click()
         
@@ -83,7 +81,6 @@ def generate_dnake_qr(developer_name, item_id=None):
         driver.find_elements(By.XPATH, "//button[.//span[text()='OK']]")[-1].click()
         time.sleep(2)
         
-        # כפתור ה-SAVE
         print("Clicking Save button...")
         save_btn = WebDriverWait(driver, 15).until(
             EC.element_to_be_clickable((By.XPATH, "//button[contains(@class, 'primarybutton') and .//span[text()='Save']]"))
@@ -117,7 +114,19 @@ def generate_dnake_qr(developer_name, item_id=None):
         return file_path
 
     except Exception as e:
-        print(f"ERROR: {e}")
+        print("--- ERROR TRACEBACK ---")
+        traceback.print_exc()
+        print("--- START DEBUG DUMP ---")
+        try:
+            print(f"Current URL: {driver.current_url}")
+            buttons = driver.find_elements(By.TAG_NAME, "button")
+            print(f"--- Found {len(buttons)} BUTTONS on screen ---")
+            for idx, b in enumerate(buttons):
+                if b.is_displayed():
+                    print(f"Button {idx}: text='{b.text.strip()}', class='{b.get_attribute('class')}'")
+        except Exception as debug_e:
+            print(f"Could not dump elements: {debug_e}")
+        print("--- END DEBUG DUMP ---")
         return None
     finally:
         driver.quit()
