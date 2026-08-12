@@ -79,22 +79,17 @@ def generate_dnake_qr(developer_name, item_id=None):
         time.sleep(3)
         upload_step_screenshot(driver, "step_3_customized_tab", item_id, MONDAY_API_TOKEN)
         
-        print("Clicking Add button via Advanced JS MouseEvents...")
-        add_btn_xpath = "//div[@id='pane-customized']//div[@class='operation']//button[contains(@class, 'primary') and not(contains(@class, 'secondary')) and .//span[normalize-space()='Add']]"
+        print("Hovering and clicking Add button using ActionChains...")
+        # שימוש בסלקטור הפשוט והמנצח שעבד בטסט המקומי
+        add_btn_xpath = "//div[@id='pane-customized']//button[.//span[contains(text(), 'Add')]]"
         main_add_btn = WebDriverWait(driver, 15).until(
-            EC.presence_of_element_located((By.XPATH, add_btn_xpath))
+            EC.element_to_be_clickable((By.XPATH, add_btn_xpath))
         )
         driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", main_add_btn)
         time.sleep(1)
         
-        # הפעלת אירועי עכבר מלאים (mousedown, mouseup, click) כדי ש-Vue.js יקלוט את הלחיצה בוודאות
-        driver.execute_script("""
-            let btn = arguments[0];
-            ['mousedown', 'mouseup', 'click'].forEach(eventType => {
-                let event = new MouseEvent(eventType, { bubbles: true, cancelable: true, view: window });
-                btn.dispatchEvent(event);
-            });
-        """, main_add_btn)
+        # ביצוע Hover אמיתי ולחיצה בעזרת ActionChains
+        ActionChains(driver).move_to_element(main_add_btn).pause(0.5).click().perform()
             
         print("Waiting for modal to open...")
         # וידוא קשיח: המתנה עד ששדה השם בחלון הקופץ אכן יופיע במסך!
