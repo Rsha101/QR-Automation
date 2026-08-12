@@ -18,25 +18,6 @@ import traceback
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-def upload_step_screenshot(driver, step_name, item_id, token):
-    """פונקציה עזר שצונחת ומעלה תמונה למאנדיי אחרי כל שלב"""
-    if not item_id:
-        return
-    filename = f"{step_name}.png"
-    try:
-        driver.save_screenshot(filename)
-        upload_url = "https://api.monday.com/v2/file"
-        headers = {"Authorization": token}
-        query = f'mutation ($file: File!) {{ add_file_to_column (item_id: {item_id}, column_id: "file_mm64npqq", file: $file) {{ id }} }}'
-        
-        with open(filename, 'rb') as f:
-            files = {'variables[file]': (filename, f, 'image/png')}
-            data = {'query': query}
-            requests.post(upload_url, headers=headers, data=data, files=files, verify=False)
-        print(f"DEBUG STEP: Screenshot '{step_name}' uploaded to Monday.")
-    except Exception as e:
-        print(f"Failed to upload step screenshot {step_name}: {e}")
-
 def generate_dnake_qr(developer_name, item_id=None):
     MONDAY_API_TOKEN = "eyJhbGciOiJIUzI1NiJ9.eyJ0aWQiOjYyMzIxMjUxOSwiYWFpIjoxMSwidWlkIjo5NzYwMTM1NywiaWFkIjoiMjAyNi0wMi0xOVQwOTowODozMS4wMDBaIiwicGVyIjoibWU6d3JpdGUiLCJhY3RpZCI6MjkzNzUzNDYsInJnbiI6ImV1YzEifQ.EsITDIb08RaofyL9eIJae6eFJ_zBUiOBeCugjSMqoDE"
     FILE_COLUMN_ID = "file_mm64npqq"
@@ -63,8 +44,6 @@ def generate_dnake_qr(developer_name, item_id=None):
         driver.find_element(By.CLASS_NAME, "v2-login-button").click()
         
         print("Logged in, navigating to Person List...")
-        upload_step_screenshot(driver, "1_logged_in", item_id, MONDAY_API_TOKEN)
-        
         site_menu = WebDriverWait(driver, 20).until(EC.presence_of_element_located((By.XPATH, "//a[@href='/siteManage/site']")))
         ActionChains(driver).move_to_element(site_menu).perform()
         time.sleep(2) 
@@ -72,24 +51,21 @@ def generate_dnake_qr(developer_name, item_id=None):
         person_menu = WebDriverWait(driver, 20).until(EC.presence_of_element_located((By.XPATH, "//a[@href='/accessManage/personList']")))
         driver.execute_script("arguments[0].click();", person_menu)
         time.sleep(5)
-        upload_step_screenshot(driver, "2_person_list", item_id, MONDAY_API_TOKEN)
         
         print("Clicking Customized tab...")
         customized_tab = WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.ID, "tab-customized")))
         driver.execute_script("arguments[0].click();", customized_tab)
         time.sleep(3)
-        upload_step_screenshot(driver, "3_customized_tab", item_id, MONDAY_API_TOKEN)
         
-        print("Clicking Add button...")
+        print("Clicking Add button using exact HTML selector...")
+        # שימוש בסלקטור המדויק מתוך ה-HTML ששלחת
         main_add_btn = WebDriverWait(driver, 15).until(
-            EC.element_to_be_clickable((By.XPATH, "//div[@id='pane-customized']//button[.//span[contains(text(), 'Add')]]"))
+            EC.element_to_be_clickable((By.XPATH, "//div[@class='operation']//button[contains(@class, 'primary') and .//span[text()='Add']]"))
         )
-        # ננסה הפעם ללחוץ בעזרת ActionChains כדי שהאתר ירגיש שזה קליק אמיתי
-        ActionChains(driver).move_to_element(main_add_btn).click().perform()
+        driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", main_add_btn)
+        time.sleep(1)
+        driver.execute_script("arguments[0].click();", main_add_btn)
         time.sleep(3)
-        
-        # צילום מסך קריטי - לבדוק האם החלון נפתח!
-        upload_step_screenshot(driver, "4_after_add_click", item_id, MONDAY_API_TOKEN)
         
         print("Entering name natively...")
         name_inputs = driver.find_elements(By.XPATH, "//input[@aria-label='Name']")
@@ -104,7 +80,6 @@ def generate_dnake_qr(developer_name, item_id=None):
                 inp.send_keys(Keys.TAB)
                 break
         time.sleep(1)
-        upload_step_screenshot(driver, "5_name_entered", item_id, MONDAY_API_TOKEN)
         
         print("Clicking setPinBtn...")
         pin_btns = driver.find_elements(By.XPATH, "//button[contains(@class, 'setPinBtn')]")
@@ -113,7 +88,6 @@ def generate_dnake_qr(developer_name, item_id=None):
                 driver.execute_script("arguments[0].click();", btn)
                 break
         time.sleep(2)
-        upload_step_screenshot(driver, "6_pin_clicked", item_id, MONDAY_API_TOKEN)
         
         print("Checking QR Checkbox...")
         qr_checkboxes = driver.find_elements(By.XPATH, "//div[contains(@class, 'pin-code-container')]/following-sibling::label//span[contains(@class, 'el-checkbox__inner')]")
@@ -122,7 +96,6 @@ def generate_dnake_qr(developer_name, item_id=None):
                 driver.execute_script("arguments[0].click();", cb)
                 break
         time.sleep(1)
-        upload_step_screenshot(driver, "7_qr_checked", item_id, MONDAY_API_TOKEN)
         
         print("Adding Access Rule...")
         access_add_btns = driver.find_elements(By.XPATH, "//button[contains(@class, 'secondary') and .//span[contains(text(), 'Add')]]")
@@ -132,7 +105,6 @@ def generate_dnake_qr(developer_name, item_id=None):
                 break
                 
         time.sleep(4) 
-        upload_step_screenshot(driver, "8_access_modal_opened", item_id, MONDAY_API_TOKEN)
         
         print("Selecting 'יזמים'...")
         WebDriverWait(driver, 20).until(
@@ -145,7 +117,6 @@ def generate_dnake_qr(developer_name, item_id=None):
                 driver.execute_script("arguments[0].click();", cb)
                 break
         time.sleep(1)
-        upload_step_screenshot(driver, "9_yazamim_selected", item_id, MONDAY_API_TOKEN)
         
         print("Clicking OK for access rule...")
         ok_buttons = driver.find_elements(By.XPATH, "//div[@aria-label='Select from Access Rule']//button[.//span[text()='OK']]")
@@ -155,7 +126,6 @@ def generate_dnake_qr(developer_name, item_id=None):
                 break
                 
         time.sleep(5) 
-        upload_step_screenshot(driver, "10_access_rule_ok", item_id, MONDAY_API_TOKEN)
         
         print("Saving User...")
         save_buttons = driver.find_elements(By.XPATH, "//button[.//span[contains(text(), 'Save')]]")
@@ -166,7 +136,7 @@ def generate_dnake_qr(developer_name, item_id=None):
                 driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", btn)
                 time.sleep(1)
                 try:
-                    ActionChains(driver).move_to_element(btn).click().perform()
+                    btn.click() 
                 except:
                     driver.execute_script("arguments[0].click();", btn)
                 clicked_save_btn = btn
@@ -176,7 +146,6 @@ def generate_dnake_qr(developer_name, item_id=None):
             raise Exception("CRITICAL ERROR: Save button was not found or is hidden!")
             
         time.sleep(6) 
-        upload_step_screenshot(driver, "11_after_save", item_id, MONDAY_API_TOKEN)
         
         print(">>> VERIFICATION STEP: Checking if user was actually created! <<<")
         search_inputs = driver.find_elements(By.XPATH, "//input[@aria-label='Name' or contains(@placeholder, 'Name')]")
@@ -189,7 +158,6 @@ def generate_dnake_qr(developer_name, item_id=None):
                 break
                 
         time.sleep(4) 
-        upload_step_screenshot(driver, "12_search_verification", item_id, MONDAY_API_TOKEN)
         
         try:
             WebDriverWait(driver, 5).until(EC.presence_of_element_located((By.XPATH, f"//td[contains(., '{developer_name}')]")))
@@ -207,7 +175,6 @@ def generate_dnake_qr(developer_name, item_id=None):
         driver.execute_script("arguments[0].click();", details_btn)
         
         time.sleep(4) 
-        upload_step_screenshot(driver, "13_details_opened", item_id, MONDAY_API_TOKEN)
         
         print("Extracting QR Image...")
         qr_img_xpath = "//div[contains(@class, 'info-value')]//img[contains(@src, 'base64')]"
@@ -252,7 +219,6 @@ def generate_dnake_qr(developer_name, item_id=None):
         print("--- ERROR TRACEBACK ---")
         traceback.print_exc()
         print(f"Error Message: {str(e)}")
-        upload_step_screenshot(driver, "Z_CRASH_SCREEN", item_id, MONDAY_API_TOKEN)
         return None
         
     finally:
