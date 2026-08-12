@@ -51,11 +51,16 @@ def generate_dnake_qr(developer_name, item_id=None):
         WebDriverWait(driver, 20).until(EC.element_to_be_clickable((By.ID, "tab-customized"))).click()
         time.sleep(3)
         
-        print("Clicking Add button...")
-        WebDriverWait(driver, 20).until(EC.element_to_be_clickable((By.XPATH, "//div[@id='pane-customized']//button[.//span[contains(text(), 'Add')]]"))).click()
+        # --- התיקון הקריטי: לחיצה כוחנית על ADD באמצעות JS ---
+        print("Clicking Add button (forcing via JS)...")
+        add_btn = WebDriverWait(driver, 20).until(
+            EC.presence_of_element_located((By.XPATH, "//div[@id='pane-customized']//button[.//span[contains(text(), 'Add')]]"))
+        )
+        driver.execute_script("arguments[0].click();", add_btn)
+        # ----------------------------------------------------
         
-        print("Waiting for name input field...")
-        time.sleep(3) 
+        print("Waiting for modal and name input field...")
+        time.sleep(4) 
         name_input = WebDriverWait(driver, 20).until(
             EC.presence_of_element_located((By.XPATH, "//input[contains(@placeholder, 'Name') or @aria-label='Name']"))
         )
