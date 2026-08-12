@@ -51,23 +51,29 @@ def generate_dnake_qr(developer_name, item_id=None):
         WebDriverWait(driver, 20).until(EC.element_to_be_clickable((By.ID, "tab-customized"))).click()
         time.sleep(3)
         
-        # --- התיקון הקריטי: לחיצה כוחנית על ADD באמצעות JS ---
-        print("Clicking Add button (forcing via JS)...")
+        # --- תיקון קריטי: לחיצה מדויקת על כפתור ה-Add לפי הטקסט שלו ---
+        print("Clicking Add button...")
         add_btn = WebDriverWait(driver, 20).until(
-            EC.presence_of_element_located((By.XPATH, "//div[@id='pane-customized']//button[.//span[contains(text(), 'Add')]]"))
+            EC.element_to_be_clickable((By.XPATH, "//button[normalize-space()='Add']"))
         )
         driver.execute_script("arguments[0].click();", add_btn)
-        # ----------------------------------------------------
+        # -----------------------------------------------------------
         
-        print("Waiting for modal and name input field...")
+        print("Waiting for modal to open...")
         time.sleep(4) 
-        name_input = WebDriverWait(driver, 20).until(
-            EC.presence_of_element_located((By.XPATH, "//input[contains(@placeholder, 'Name') or @aria-label='Name']"))
+        
+        # --- תיקון קריטי: מוצאים את כל שדות ה-Name ובוחרים את האחרון (שזה החלון הקופץ) ---
+        print("Entering name...")
+        name_inputs = WebDriverWait(driver, 20).until(
+            EC.presence_of_all_elements_located((By.XPATH, "//input[contains(@placeholder, 'Name') or @aria-label='Name']"))
         )
-        driver.execute_script("arguments[0].value = '';", name_input)
-        driver.execute_script(f"arguments[0].value = '{developer_name}';", name_input)
-        driver.execute_script("arguments[0].dispatchEvent(new Event('input'));", name_input)
-        driver.execute_script("arguments[0].dispatchEvent(new Event('change'));", name_input)
+        target_input = name_inputs[-1] # בוחר את האחרון ברשימה
+        
+        driver.execute_script("arguments[0].value = '';", target_input)
+        driver.execute_script(f"arguments[0].value = '{developer_name}';", target_input)
+        driver.execute_script("arguments[0].dispatchEvent(new Event('input'));", target_input)
+        driver.execute_script("arguments[0].dispatchEvent(new Event('change'));", target_input)
+        # --------------------------------------------------------------------------------
         
         print("Scrolling to and clicking setPinBtn...")
         time.sleep(2)
