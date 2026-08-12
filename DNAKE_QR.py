@@ -61,15 +61,19 @@ def generate_dnake_qr(developer_name, item_id=None):
         main_add_btn.click() 
         time.sleep(3)
         
-        print("Entering name...")
+        print("Entering name with force events...")
         name_inputs = driver.find_elements(By.XPATH, "//input[@aria-label='Name']")
         for inp in name_inputs:
             if inp.is_displayed():
-                inp.click() # לחיצה על השדה כדי למקד אותו
+                inp.click()
                 inp.clear()
-                inp.send_keys(developer_name)
-                time.sleep(0.5)
-                inp.send_keys(Keys.TAB) # הדמיית יציאה מהשדה כדי שהאתר יקלוט את הטקסט!
+                # הכרחת שמירת השם במערכת ה-VUE של האתר
+                driver.execute_script("arguments[0].value = arguments[1];", inp, developer_name)
+                driver.execute_script("arguments[0].dispatchEvent(new Event('input', { bubbles: true }));", inp)
+                driver.execute_script("arguments[0].dispatchEvent(new Event('change', { bubbles: true }));", inp)
+                inp.send_keys(Keys.SPACE)
+                inp.send_keys(Keys.BACKSPACE)
+                inp.send_keys(Keys.TAB)
                 break
         time.sleep(1)
         
@@ -127,20 +131,31 @@ def generate_dnake_qr(developer_name, item_id=None):
             if btn.is_displayed():
                 driver.execute_script("arguments[0].scrollIntoView(true);", btn)
                 time.sleep(1)
-                # שימוש ב-ActionChains ללחיצה הכי טבעית שיש
                 ActionChains(driver).move_to_element(btn).click().perform()
                 clicked_save_btn = btn
                 break
         
         print("Waiting for modal to close (confirming save)...")
-        # הוידוא הקריטי: אנחנו עוצרים את הקוד ולא ממשיכים עד שכפתור השמירה נעלם!
         if clicked_save_btn:
             WebDriverWait(driver, 20).until(EC.invisibility_of_element(clicked_save_btn))
             
-        print("User saved successfully, waiting for table refresh...")
-        time.sleep(5) 
+        print("User saved successfully! Filtering table to find the exact user...")
+        time.sleep(4) 
         
-        print("Clicking topmost DETAILS button...")
+        # חיפוש בטבלה כדי לבודד את המשתמש החדש שיצרנו
+        search_inputs = driver.find_elements(By.XPATH, "//input[@aria-label='Name' or contains(@placeholder, 'Name')]")
+        for inp in search_inputs:
+            if inp.is_displayed():
+                inp.clear()
+                inp.send_keys(developer_name)
+                inp.send_keys(Keys.ENTER)
+                driver.execute_script("arguments[0].dispatchEvent(new Event('input', { bubbles: true }));", inp)
+                driver.execute_script("arguments[0].dispatchEvent(new Event('change', { bubbles: true }));", inp)
+                break
+                
+        time.sleep(4) # ממתינים לטבלה להסתנן
+        
+        print("Clicking topmost DETAILS button of the filtered result...")
         top_details_btn_xpath = "(//tr[contains(@class, 'el-table__row')][1]//div[@class='btn-item'])[1]"
         details_btn = WebDriverWait(driver, 15).until(
             EC.presence_of_element_located((By.XPATH, top_details_btn_xpath))
