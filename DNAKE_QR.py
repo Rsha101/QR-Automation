@@ -132,12 +132,6 @@ def generate_dnake_qr(developer_name, item_id=None):
             if btn.is_displayed():
                 driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", btn)
                 time.sleep(1)
-                
-                # === צילום מסך לצורכי דיבאג *לפני* השמירה ===
-                print(">>> DEBUG: Taking screenshot BEFORE clicking Save... <<<")
-                driver.save_screenshot("debug_before_save.png")
-                # ========================================================
-                
                 try:
                     btn.click() 
                 except:
@@ -145,6 +139,10 @@ def generate_dnake_qr(developer_name, item_id=None):
                 clicked_save_btn = btn
                 break
         
+        # עצירה קשיחה אם כפתור השמירה לא נמצא
+        if not clicked_save_btn:
+            raise Exception("CRITICAL ERROR: Save button was not found or is hidden!")
+            
         print("Waiting for modal to close (confirming save)...")
         if clicked_save_btn:
             try:
@@ -228,22 +226,24 @@ def generate_dnake_qr(developer_name, item_id=None):
         traceback.print_exc()
         print(f"Error Message: {str(e)}")
         
-        # דיבאג חכם: נעלה את התמונה של *לפני* השמירה למאנדיי
-        if item_id and os.path.exists("debug_before_save.png"):
-            print(">>> DEBUG: Uploading ERROR SCREENSHOT (Before Save) to Monday... <<<")
-            upload_url = "https://api.monday.com/v2/file"
-            headers = {"Authorization": MONDAY_API_TOKEN}
-            query = f'mutation ($file: File!) {{ add_file_to_column (item_id: {item_id}, column_id: "{FILE_COLUMN_ID}", file: $file) {{ id }} }}'
-            
-            try:
-                with open("debug_before_save.png", 'rb') as f:
-                    files = {'variables[file]': ("DEBUG_BEFORE_SAVE.png", f, 'image/png')}
+        # דיבאג חכם: צילום המסך מתבצע ממש כאן ברגע הקריסה ומועלה למאנדיי!
+        try:
+            print(">>> DEBUG: Taking screenshot of the exact moment of failure... <<<")
+            driver.save_screenshot("crash_screen.png")
+            if item_id:
+                print(">>> DEBUG: Uploading CRASH SCREENSHOT to Monday... <<<")
+                upload_url = "https://api.monday.com/v2/file"
+                headers = {"Authorization": MONDAY_API_TOKEN}
+                query = f'mutation ($file: File!) {{ add_file_to_column (item_id: {item_id}, column_id: "{FILE_COLUMN_ID}", file: $file) {{ id }} }}'
+                
+                with open("crash_screen.png", 'rb') as f:
+                    files = {'variables[file]': ("CRASH_SCREEN.png", f, 'image/png')}
                     data = {'query': query}
                     requests.post(upload_url, headers=headers, data=data, files=files, verify=False)
-                print("Debug screenshot sent to Monday successfully! Go check your board.")
-            except Exception as upload_err:
-                print(f"Failed to upload debug screenshot: {upload_err}")
-                
+                print("Crash screenshot sent to Monday successfully! Go check your board.")
+        except Exception as pic_err:
+            print(f"Failed to save/upload crash screenshot: {pic_err}")
+            
         return None
         
     finally:
