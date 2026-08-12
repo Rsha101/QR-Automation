@@ -79,19 +79,16 @@ def generate_dnake_qr(developer_name, item_id=None):
         time.sleep(3)
         upload_step_screenshot(driver, "step_3_customized_tab", item_id, MONDAY_API_TOKEN)
         
-        print("Clicking Add button...")
+        print("Clicking Add button via Pure JavaScript...")
         add_btn_xpath = "//div[@id='pane-customized']//div[@class='operation']//button[contains(@class, 'primary') and not(contains(@class, 'secondary')) and .//span[normalize-space()='Add']]"
         main_add_btn = WebDriverWait(driver, 15).until(
-            EC.element_to_be_clickable((By.XPATH, add_btn_xpath))
+            EC.presence_of_element_located((By.XPATH, add_btn_xpath))
         )
         driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", main_add_btn)
         time.sleep(1)
         
-        # לחיצה כפולה (גם רגילה וגם ג'אווה-סקריפט) כדי לוודא שהאתר קולט אותה
-        try:
-            main_add_btn.click()
-        except:
-            driver.execute_script("arguments[0].click();", main_add_btn)
+        # לחיצת ג'אווה-סקריפט ישירה לחלוטין שעוקפת את בעיית ה-Hover והחסימות
+        driver.execute_script("arguments[0].click();", main_add_btn)
             
         print("Waiting for modal to open...")
         # וידוא קשיח: המתנה עד ששדה השם בחלון הקופץ אכן יופיע במסך!
@@ -174,10 +171,7 @@ def generate_dnake_qr(developer_name, item_id=None):
             if btn.is_displayed():
                 driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", btn)
                 time.sleep(1)
-                try:
-                    btn.click() 
-                except:
-                    driver.execute_script("arguments[0].click();", btn)
+                driver.execute_script("arguments[0].click();", btn)
                 clicked_save_btn = btn
                 break
         
