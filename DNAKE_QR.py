@@ -79,7 +79,7 @@ def generate_dnake_qr(developer_name, item_id=None):
         time.sleep(3)
         upload_step_screenshot(driver, "step_3_customized_tab", item_id, MONDAY_API_TOKEN)
         
-        print("Hovering and forcefully clicking Add button...")
+        print("Clicking Add button using ActionChains move_to_element and click...")
         add_btn_xpath = "//div[@id='pane-customized']//button[.//span[contains(text(), 'Add')]]"
         main_add_btn = WebDriverWait(driver, 15).until(
             EC.element_to_be_clickable((By.XPATH, add_btn_xpath))
@@ -87,12 +87,8 @@ def generate_dnake_qr(developer_name, item_id=None):
         driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", main_add_btn)
         time.sleep(1)
         
-        # 1. ביצוע Hover אמיתי כדי שהכפתור יתעורר ויזהה שהעכבר עליו
-        ActionChains(driver).move_to_element(main_add_btn).pause(0.5).perform()
-        time.sleep(0.5)
-        
-        # 2. לחיצת JavaScript ישירה בזמן שהעכבר עליו (מבטיח שהחלון ייפתח ללא תקלות)
-        driver.execute_script("arguments[0].click();", main_add_btn)
+        # שרשרת פעולות אחידה: גם מזיזה את העכבר לכפתור וגם לוחצת עליו באותה הפקודה!
+        ActionChains(driver).move_to_element(main_add_btn).click().perform()
             
         print("Waiting for modal to open...")
         # וידוא קשיח: המתנה עד ששדה השם בחלון הקופץ אכן יופיע במסך!
