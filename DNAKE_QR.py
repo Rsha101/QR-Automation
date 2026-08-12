@@ -79,7 +79,7 @@ def generate_dnake_qr(developer_name, item_id=None):
         time.sleep(3)
         upload_step_screenshot(driver, "step_3_customized_tab", item_id, MONDAY_API_TOKEN)
         
-        print("Clicking Add button using double_click...")
+        print("Hovering and clicking Add button (Hover + JS Click combo)...")
         add_btn_xpath = "//div[@id='pane-customized']//button[.//span[contains(text(), 'Add')]]"
         main_add_btn = WebDriverWait(driver, 15).until(
             EC.element_to_be_clickable((By.XPATH, add_btn_xpath))
@@ -87,8 +87,10 @@ def generate_dnake_qr(developer_name, item_id=None):
         driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", main_add_btn)
         time.sleep(1)
         
-        # לחיצה כפולה בעזרת ActionChains
-        ActionChains(driver).move_to_element(main_add_btn).double_click().perform()
+        # שילוב מנצח: מרחפים עם העכבר (Hover) כדי להדליק את הכפתור, ואז לוחצים עליו ב-JS בזמן שהוא מואר!
+        ActionChains(driver).move_to_element(main_add_btn).pause(0.5).perform()
+        time.sleep(0.5)
+        driver.execute_script("arguments[0].click();", main_add_btn)
             
         print("Waiting for modal to open...")
         # וידוא קשיח: המתנה עד ששדה השם בחלון הקופץ אכן יופיע במסך!
