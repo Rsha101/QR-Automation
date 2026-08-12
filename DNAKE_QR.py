@@ -61,7 +61,7 @@ def generate_dnake_qr(developer_name, item_id=None):
         main_add_btn.click() 
         time.sleep(3)
         
-        print("Entering name...")
+        print("Entering name natively AND forcefully...")
         name_inputs = driver.find_elements(By.XPATH, "//input[@aria-label='Name']")
         for inp in name_inputs:
             if inp.is_displayed():
@@ -69,8 +69,20 @@ def generate_dnake_qr(developer_name, item_id=None):
                 time.sleep(0.5)
                 inp.clear()
                 time.sleep(0.5)
-                inp.send_keys(developer_name)
+                
+                # האק מיוחד למערכות VUE - עוקף את הדפדפן ומכניס את הערך ישירות לליבה של האתר
+                driver.execute_script("""
+                    let input = arguments[0];
+                    let text = arguments[1];
+                    let nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value").set;
+                    nativeInputValueSetter.call(input, text);
+                    input.dispatchEvent(new Event('input', { bubbles: true }));
+                    input.dispatchEvent(new Event('change', { bubbles: true }));
+                """, inp, developer_name)
+                
                 time.sleep(0.5)
+                inp.send_keys(Keys.SPACE)
+                inp.send_keys(Keys.BACKSPACE)
                 inp.send_keys(Keys.TAB)
                 break
         time.sleep(1)
@@ -130,7 +142,7 @@ def generate_dnake_qr(developer_name, item_id=None):
                 driver.execute_script("arguments[0].scrollIntoView(true);", btn)
                 time.sleep(1)
                 try:
-                    btn.click() # שימוש בלחיצת סלניום קלאסית שעובדת הכי טוב
+                    btn.click() 
                 except:
                     driver.execute_script("arguments[0].click();", btn)
                 clicked_save_btn = btn
@@ -139,10 +151,11 @@ def generate_dnake_qr(developer_name, item_id=None):
         print("Waiting for modal to close (confirming save)...")
         if clicked_save_btn:
             try:
-                # וידוא שהחלון נסגר בהצלחה
-                WebDriverWait(driver, 15).until(EC.invisibility_of_element(clicked_save_btn))
-            except:
-                print("WARNING: Modal did not close. Save might have failed!")
+                # עצירה קשיחה: אם החלון לא נסגר תוך 10 שניות, הקוד יקרוס בכוונה!
+                WebDriverWait(driver, 10).until(EC.invisibility_of_element(clicked_save_btn))
+                print("Modal closed successfully. Save confirmed!")
+            except Exception as wait_e:
+                raise Exception("CRITICAL ERROR: Save button clicked, but the modal did not close. The site rejected the input.")
             
         print("User saved successfully, waiting for table refresh...")
         time.sleep(6) 
@@ -200,6 +213,7 @@ def generate_dnake_qr(developer_name, item_id=None):
     except Exception as e:
         print("--- ERROR TRACEBACK ---")
         traceback.print_exc()
+        print(f"Exception message: {str(e)}")
         return None
         
     finally:
