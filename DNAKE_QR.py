@@ -19,7 +19,6 @@ import traceback
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 def upload_step_screenshot(driver, step_name, item_id, token):
-    """פונקציה ששומרת ומעלה צילום מסך למאנדיי אחרי כל שלב כדי שנוכל לעקוב אחרי כל פעולה"""
     if not item_id:
         return
     filename = f"{step_name}.png"
@@ -81,18 +80,25 @@ def generate_dnake_qr(developer_name, item_id=None):
         upload_step_screenshot(driver, "step_3_customized_tab", item_id, MONDAY_API_TOKEN)
         
         print("Clicking Add button...")
-        # שימוש בסלקטור מדויק לכפתור ה-Add תחת Customized
-        add_btn_xpath = "//div[@id='pane-customized']//div[@class='operation']//button[contains(@class, 'primary') and not(contains(@class, 'secondary'))]"
+        add_btn_xpath = "//div[@id='pane-customized']//div[@class='operation']//button[contains(@class, 'primary') and not(contains(@class, 'secondary')) and .//span[normalize-space()='Add']]"
         main_add_btn = WebDriverWait(driver, 15).until(
             EC.element_to_be_clickable((By.XPATH, add_btn_xpath))
         )
         driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", main_add_btn)
         time.sleep(1)
-        driver.execute_script("arguments[0].click();", main_add_btn)
-        time.sleep(3)
         
-        # צילום מסך קריטי - לבדוק האם חלון הוספת משתמש נפתח!
-        upload_step_screenshot(driver, "step_4_after_add_click", item_id, MONDAY_API_TOKEN)
+        # לחיצה כפולה (גם רגילה וגם ג'אווה-סקריפט) כדי לוודא שהאתר קולט אותה
+        try:
+            main_add_btn.click()
+        except:
+            driver.execute_script("arguments[0].click();", main_add_btn)
+            
+        print("Waiting for modal to open...")
+        # וידוא קשיח: המתנה עד ששדה השם בחלון הקופץ אכן יופיע במסך!
+        WebDriverWait(driver, 10).until(
+            EC.presence_of_element_located((By.XPATH, "//input[@aria-label='Name']"))
+        )
+        upload_step_screenshot(driver, "step_4_modal_opened", item_id, MONDAY_API_TOKEN)
         
         print("Entering name natively...")
         name_inputs = driver.find_elements(By.XPATH, "//input[@aria-label='Name']")
