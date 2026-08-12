@@ -9,6 +9,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.action_chains import ActionChains
+from selenium.webdriver.common.keys import Keys
 import time
 import base64
 import requests
@@ -64,7 +65,11 @@ def generate_dnake_qr(developer_name, item_id=None):
         name_inputs = driver.find_elements(By.XPATH, "//input[@aria-label='Name']")
         for inp in name_inputs:
             if inp.is_displayed():
+                inp.click() # לחיצה על השדה כדי למקד אותו
+                inp.clear()
                 inp.send_keys(developer_name)
+                time.sleep(0.5)
+                inp.send_keys(Keys.TAB) # הדמיית יציאה מהשדה כדי שהאתר יקלוט את הטקסט!
                 break
         time.sleep(1)
         
@@ -112,23 +117,28 @@ def generate_dnake_qr(developer_name, item_id=None):
                 driver.execute_script("arguments[0].click();", btn)
                 break
                 
-        # --- התיקון: המתנה לסגירת החלון, ולחיצה אמיתית על כפתור השמירה ---
         time.sleep(3) 
+        
         print("Saving User...")
         save_buttons = driver.find_elements(By.XPATH, "//button[.//span[contains(text(), 'Save')]]")
+        clicked_save_btn = None
+        
         for btn in save_buttons:
             if btn.is_displayed():
                 driver.execute_script("arguments[0].scrollIntoView(true);", btn)
                 time.sleep(1)
-                try:
-                    btn.click() # לחיצה טבעית שנקלטת על ידי האתר
-                except:
-                    driver.execute_script("arguments[0].click();", btn) # גיבוי
+                # שימוש ב-ActionChains ללחיצה הכי טבעית שיש
+                ActionChains(driver).move_to_element(btn).click().perform()
+                clicked_save_btn = btn
                 break
-        # ------------------------------------------------------------------
         
-        print("User saved, waiting for table refresh...")
-        time.sleep(8) 
+        print("Waiting for modal to close (confirming save)...")
+        # הוידוא הקריטי: אנחנו עוצרים את הקוד ולא ממשיכים עד שכפתור השמירה נעלם!
+        if clicked_save_btn:
+            WebDriverWait(driver, 20).until(EC.invisibility_of_element(clicked_save_btn))
+            
+        print("User saved successfully, waiting for table refresh...")
+        time.sleep(5) 
         
         print("Clicking topmost DETAILS button...")
         top_details_btn_xpath = "(//tr[contains(@class, 'el-table__row')][1]//div[@class='btn-item'])[1]"
