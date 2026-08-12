@@ -28,7 +28,8 @@ def generate_dnake_qr(developer_name, item_id=None):
     options.add_argument('--disable-dev-shm-usage')
     options.add_argument('--window-size=2560,1440')
     options.add_argument('--ignore-certificate-errors')
-    # הוספת "זהות" של מחשב אמיתי כדי שהאתר לא יחשוב שזה רובוט
+    # הסוואת הרובוט - כדי שהאתר לא יחסום את השמירה בענן
+    options.add_argument('--disable-blink-features=AutomationControlled')
     options.add_argument('user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36')
     
     service = Service(ChromeDriverManager().install())
@@ -63,15 +64,22 @@ def generate_dnake_qr(developer_name, item_id=None):
         main_add_btn.click() 
         time.sleep(3)
         
-        print("Entering name natively (Exactly like local script)...")
+        print("Entering name letter-by-letter to force Vue.js detection...")
         name_inputs = driver.find_elements(By.XPATH, "//input[@aria-label='Name']")
         for inp in name_inputs:
             if inp.is_displayed():
                 inp.click()
                 time.sleep(0.5)
-                inp.clear()
+                # מחיקה יסודית
+                inp.send_keys(Keys.CONTROL + "a")
+                inp.send_keys(Keys.BACKSPACE)
                 time.sleep(0.5)
-                inp.send_keys(developer_name)
+                
+                # הקלדה אות אחר אות כמו בן אדם אמיתי!
+                for char in developer_name:
+                    inp.send_keys(char)
+                    time.sleep(0.1) # השהייה קטנה בין כל אות
+                    
                 time.sleep(0.5)
                 inp.send_keys(Keys.TAB)
                 break
@@ -127,11 +135,12 @@ def generate_dnake_qr(developer_name, item_id=None):
         save_buttons = driver.find_elements(By.XPATH, "//button[.//span[contains(text(), 'Save')]]")
         for btn in save_buttons:
             if btn.is_displayed():
+                driver.execute_script("arguments[0].scrollIntoView(true);", btn)
+                time.sleep(1)
                 try:
-                    ActionChains(driver).move_to_element(btn).click().perform()
+                    btn.click() # לחיצה טבעית
                 except:
-                    # שימוש באנטר במקלדת אם העכבר מסתבך
-                    btn.send_keys(Keys.ENTER) 
+                    driver.execute_script("arguments[0].click();", btn)
                 break
         
         print("Waiting for server to process save...")
@@ -142,7 +151,9 @@ def generate_dnake_qr(developer_name, item_id=None):
         for inp in search_inputs:
             if inp.is_displayed():
                 inp.clear()
-                inp.send_keys(developer_name)
+                for char in developer_name:
+                    inp.send_keys(char)
+                    time.sleep(0.05)
                 time.sleep(1)
                 inp.send_keys(Keys.ENTER)
                 break
@@ -150,11 +161,9 @@ def generate_dnake_qr(developer_name, item_id=None):
         time.sleep(4) 
         
         try:
-            # וידוא קשיח: האם השם מופיע בטבלה?
             WebDriverWait(driver, 5).until(EC.presence_of_element_located((By.XPATH, f"//td[contains(., '{developer_name}')]")))
             print(f"BINGO: User '{developer_name}' verified in table!")
         except:
-            # אם הוא לא נוצר, שוברים הכל כדי לא לשלוח QR שגוי!
             raise Exception(f"CRITICAL ERROR: User '{developer_name}' was NOT created. Aborting process to prevent sending wrong QR.")
         
         print("Clicking topmost DETAILS button of the verified result...")
