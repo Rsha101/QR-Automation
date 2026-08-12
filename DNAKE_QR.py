@@ -26,6 +26,7 @@ def generate_dnake_qr(developer_name, item_id=None):
     options.add_argument('--no-sandbox')
     options.add_argument('--disable-dev-shm-usage')
     options.add_argument('--window-size=2560,1440')
+    options.add_argument('--ignore-certificate-errors')
     
     service = Service(ChromeDriverManager().install())
     driver = webdriver.Chrome(service=service, options=options)
@@ -48,96 +49,127 @@ def generate_dnake_qr(developer_name, item_id=None):
         time.sleep(5)
         
         print("Clicking Customized tab...")
-        WebDriverWait(driver, 20).until(EC.element_to_be_clickable((By.ID, "tab-customized"))).click()
+        customized_tab = WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.ID, "tab-customized")))
+        driver.execute_script("arguments[0].click();", customized_tab)
         time.sleep(3)
         
-        # --- תיקון קריטי: לחיצה מדויקת על כפתור ה-Add לפי הטקסט שלו ---
         print("Clicking Add button...")
-        add_btn = WebDriverWait(driver, 20).until(
-            EC.element_to_be_clickable((By.XPATH, "//button[normalize-space()='Add']"))
+        main_add_btn = WebDriverWait(driver, 15).until(
+            EC.element_to_be_clickable((By.XPATH, "//div[@id='pane-customized']//button[.//span[contains(text(), 'Add')]]"))
         )
-        driver.execute_script("arguments[0].click();", add_btn)
-        # -----------------------------------------------------------
+        main_add_btn.click() 
+        time.sleep(3)
         
-        print("Waiting for modal to open...")
-        time.sleep(4) 
-        
-        # --- תיקון קריטי: מוצאים את כל שדות ה-Name ובוחרים את האחרון (שזה החלון הקופץ) ---
         print("Entering name...")
-        name_inputs = WebDriverWait(driver, 20).until(
-            EC.presence_of_all_elements_located((By.XPATH, "//input[contains(@placeholder, 'Name') or @aria-label='Name']"))
-        )
-        target_input = name_inputs[-1] # בוחר את האחרון ברשימה
-        
-        driver.execute_script("arguments[0].value = '';", target_input)
-        driver.execute_script(f"arguments[0].value = '{developer_name}';", target_input)
-        driver.execute_script("arguments[0].dispatchEvent(new Event('input'));", target_input)
-        driver.execute_script("arguments[0].dispatchEvent(new Event('change'));", target_input)
-        # --------------------------------------------------------------------------------
-        
-        print("Scrolling to and clicking setPinBtn...")
-        time.sleep(2)
-        pin_btn = WebDriverWait(driver, 15).until(
-            EC.presence_of_element_located((By.CLASS_NAME, "setPinBtn"))
-        )
-        driver.execute_script("arguments[0].scrollIntoView(true);", pin_btn)
+        name_inputs = driver.find_elements(By.XPATH, "//input[@aria-label='Name']")
+        for inp in name_inputs:
+            if inp.is_displayed():
+                inp.send_keys(developer_name)
+                break
         time.sleep(1)
-        driver.execute_script("arguments[0].click();", pin_btn)
         
-        driver.find_element(By.XPATH, "//div[contains(@class, 'pin-code-container')]/following-sibling::label//span[contains(@class, 'el-checkbox__inner')]").click()
-        
-        driver.find_elements(By.XPATH, "//button[contains(., 'Add')]")[-1].click()
+        print("Clicking setPinBtn...")
+        pin_btns = driver.find_elements(By.XPATH, "//button[contains(@class, 'setPinBtn')]")
+        for btn in pin_btns:
+            if btn.is_displayed():
+                driver.execute_script("arguments[0].click();", btn)
+                break
         time.sleep(2)
-        driver.find_element(By.XPATH, "//tr[.//td[contains(., 'יזמים')]]//span[contains(@class, 'el-checkbox__inner')]").click()
-        driver.find_elements(By.XPATH, "//button[.//span[text()='OK']]")[-1].click()
-        time.sleep(2)
         
-        print("Clicking Save button...")
-        save_btn = WebDriverWait(driver, 15).until(
-            EC.element_to_be_clickable((By.XPATH, "//button[contains(@class, 'primarybutton') and .//span[text()='Save']]"))
+        print("Checking QR Checkbox...")
+        qr_checkboxes = driver.find_elements(By.XPATH, "//div[contains(@class, 'pin-code-container')]/following-sibling::label//span[contains(@class, 'el-checkbox__inner')]")
+        for cb in qr_checkboxes:
+            if cb.is_displayed():
+                driver.execute_script("arguments[0].click();", cb)
+                break
+        time.sleep(1)
+        
+        print("Adding Access Rule...")
+        access_add_btns = driver.find_elements(By.XPATH, "//button[contains(@class, 'secondary') and .//span[contains(text(), 'Add')]]")
+        for btn in access_add_btns:
+            if btn.is_displayed():
+                driver.execute_script("arguments[0].click();", btn)
+                break
+        time.sleep(2) 
+        
+        print("Selecting 'יזמים'...")
+        yazamim_checkbox = WebDriverWait(driver, 10).until(
+            EC.presence_of_element_located((By.XPATH, "//tr[.//td[contains(., 'יזמים')]]//span[contains(@class, 'el-checkbox__inner')]"))
         )
-        driver.execute_script("arguments[0].scrollIntoView(true);", save_btn)
-        driver.execute_script("arguments[0].click();", save_btn)
+        driver.execute_script("arguments[0].click();", yazamim_checkbox)
+        time.sleep(1)
+        
+        ok_buttons = driver.find_elements(By.XPATH, "//div[@aria-label='Select from Access Rule']//button[.//span[text()='OK']]")
+        for btn in ok_buttons:
+            if btn.is_displayed():
+                driver.execute_script("arguments[0].click();", btn)
+                break
+        time.sleep(2)
+        
+        print("Saving User...")
+        save_buttons = driver.find_elements(By.XPATH, "//button[.//span[contains(text(), 'Save')]]")
+        for btn in save_buttons:
+            if btn.is_displayed():
+                driver.execute_script("arguments[0].click();", btn)
+                break
         
         print("User saved, waiting for table refresh...")
-        time.sleep(8)
+        time.sleep(8) 
         
-        driver.find_elements(By.CLASS_NAME, "btn-item")[0].click()
-        time.sleep(4)
+        print("Clicking topmost DETAILS button...")
+        top_details_btn_xpath = "(//tr[contains(@class, 'el-table__row')][1]//div[@class='btn-item'])[1]"
+        details_btn = WebDriverWait(driver, 15).until(
+            EC.presence_of_element_located((By.XPATH, top_details_btn_xpath))
+        )
+        driver.execute_script("arguments[0].scrollIntoView(true);", details_btn)
+        time.sleep(1)
+        driver.execute_script("arguments[0].click();", details_btn)
         
-        qr_img = WebDriverWait(driver, 15).until(EC.presence_of_element_located((By.XPATH, "//div[contains(@class, 'info-value')]//img[contains(@src, 'base64')]")))
-        base64_data = qr_img.get_attribute("src").split("base64,")[1]
+        time.sleep(4) 
         
+        print("Extracting QR Image...")
+        qr_img_xpath = "//div[contains(@class, 'info-value')]//img[contains(@src, 'base64')]"
+        qr_img_element = WebDriverWait(driver, 15).until(
+            EC.presence_of_element_located((By.XPATH, qr_img_xpath))
+        )
+        
+        base64_data = qr_img_element.get_attribute("src")
         file_path = f"qr_{item_id}.png"
-        with open(file_path, "wb") as f:
-            f.write(base64.b64decode(base64_data))
-        print("QR saved locally.")
         
-        if item_id:
-            print("Uploading to Monday...")
-            upload_url = "https://api.monday.com/v2/file"
-            query = f'mutation ($file: File!) {{ add_file_to_column (item_id: {item_id}, column_id: "{FILE_COLUMN_ID}", file: $file) {{ id }} }}'
-            with open(file_path, 'rb') as f:
-                files = {'query': (None, query), 'variables[file]': (file_path, f, 'image/png')}
-                resp = requests.post(upload_url, headers={"Authorization": MONDAY_API_TOKEN}, files=files, verify=False)
-                print(f"Monday API status: {resp.status_code}, Response: {resp.text}")
+        if "base64," in base64_data:
+            base64_string = base64_data.split("base64,")[1]
+            img_data = base64.b64decode(base64_string)
+            
+            with open(file_path, "wb") as f:
+                f.write(img_data)
                 
-        return file_path
+            print(f"QR code saved successfully!")
+            
+            if item_id:
+                print("Uploading QR code to Monday.com...")
+                upload_url = "https://api.monday.com/v2/file"
+                headers = {"Authorization": MONDAY_API_TOKEN}
+                query = f'mutation ($file: File!) {{ add_file_to_column (item_id: {item_id}, column_id: "{FILE_COLUMN_ID}", file: $file) {{ id }} }}'
+                
+                with open(file_path, 'rb') as f:
+                    files = {'variables[file]': (os.path.basename(file_path), f, 'image/png')}
+                    data = {'query': query}
+                    response = requests.post(upload_url, headers=headers, data=data, files=files, verify=False)
+                
+                if response.status_code == 200 and 'errors' not in response.json():
+                    print("Success: File uploaded to Monday perfectly!")
+                else:
+                    print(f"Failed to upload to Monday: {response.text}")
+
+            return file_path
+        else:
+            print("Error: Could not find base64 image data.")
+            return None
 
     except Exception as e:
         print("--- ERROR TRACEBACK ---")
         traceback.print_exc()
-        print("--- START DEBUG DUMP ---")
-        try:
-            print(f"Current URL: {driver.current_url}")
-            buttons = driver.find_elements(By.TAG_NAME, "button")
-            print(f"--- Found {len(buttons)} BUTTONS on screen ---")
-            for idx, b in enumerate(buttons):
-                if b.is_displayed():
-                    print(f"Button {idx}: text='{b.text.strip()}', class='{b.get_attribute('class')}'")
-        except Exception as debug_e:
-            print(f"Could not dump elements: {debug_e}")
-        print("--- END DEBUG DUMP ---")
         return None
+        
     finally:
         driver.quit()
