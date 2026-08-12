@@ -28,6 +28,8 @@ def generate_dnake_qr(developer_name, item_id=None):
     options.add_argument('--disable-dev-shm-usage')
     options.add_argument('--window-size=2560,1440')
     options.add_argument('--ignore-certificate-errors')
+    # הוספת "זהות" של מחשב אמיתי כדי שהאתר לא יחשוב שזה רובוט
+    options.add_argument('user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36')
     
     service = Service(ChromeDriverManager().install())
     driver = webdriver.Chrome(service=service, options=options)
@@ -61,7 +63,7 @@ def generate_dnake_qr(developer_name, item_id=None):
         main_add_btn.click() 
         time.sleep(3)
         
-        print("Entering name natively AND forcefully...")
+        print("Entering name natively (Exactly like local script)...")
         name_inputs = driver.find_elements(By.XPATH, "//input[@aria-label='Name']")
         for inp in name_inputs:
             if inp.is_displayed():
@@ -69,20 +71,8 @@ def generate_dnake_qr(developer_name, item_id=None):
                 time.sleep(0.5)
                 inp.clear()
                 time.sleep(0.5)
-                
-                # האק מיוחד למערכות VUE - עוקף את הדפדפן ומכניס את הערך ישירות לליבה של האתר
-                driver.execute_script("""
-                    let input = arguments[0];
-                    let text = arguments[1];
-                    let nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value").set;
-                    nativeInputValueSetter.call(input, text);
-                    input.dispatchEvent(new Event('input', { bubbles: true }));
-                    input.dispatchEvent(new Event('change', { bubbles: true }));
-                """, inp, developer_name)
-                
+                inp.send_keys(developer_name)
                 time.sleep(0.5)
-                inp.send_keys(Keys.SPACE)
-                inp.send_keys(Keys.BACKSPACE)
                 inp.send_keys(Keys.TAB)
                 break
         time.sleep(1)
@@ -135,32 +125,39 @@ def generate_dnake_qr(developer_name, item_id=None):
         
         print("Saving User...")
         save_buttons = driver.find_elements(By.XPATH, "//button[.//span[contains(text(), 'Save')]]")
-        clicked_save_btn = None
-        
         for btn in save_buttons:
             if btn.is_displayed():
-                driver.execute_script("arguments[0].scrollIntoView(true);", btn)
-                time.sleep(1)
                 try:
-                    btn.click() 
+                    ActionChains(driver).move_to_element(btn).click().perform()
                 except:
-                    driver.execute_script("arguments[0].click();", btn)
-                clicked_save_btn = btn
+                    # שימוש באנטר במקלדת אם העכבר מסתבך
+                    btn.send_keys(Keys.ENTER) 
                 break
         
-        print("Waiting for modal to close (confirming save)...")
-        if clicked_save_btn:
-            try:
-                # עצירה קשיחה: אם החלון לא נסגר תוך 10 שניות, הקוד יקרוס בכוונה!
-                WebDriverWait(driver, 10).until(EC.invisibility_of_element(clicked_save_btn))
-                print("Modal closed successfully. Save confirmed!")
-            except Exception as wait_e:
-                raise Exception("CRITICAL ERROR: Save button clicked, but the modal did not close. The site rejected the input.")
-            
-        print("User saved successfully, waiting for table refresh...")
-        time.sleep(6) 
+        print("Waiting for server to process save...")
+        time.sleep(8) 
         
-        print("Clicking topmost DETAILS button...")
+        print(">>> VERIFICATION STEP: Checking if user was actually created! <<<")
+        search_inputs = driver.find_elements(By.XPATH, "//input[@aria-label='Name' or contains(@placeholder, 'Name')]")
+        for inp in search_inputs:
+            if inp.is_displayed():
+                inp.clear()
+                inp.send_keys(developer_name)
+                time.sleep(1)
+                inp.send_keys(Keys.ENTER)
+                break
+                
+        time.sleep(4) 
+        
+        try:
+            # וידוא קשיח: האם השם מופיע בטבלה?
+            WebDriverWait(driver, 5).until(EC.presence_of_element_located((By.XPATH, f"//td[contains(., '{developer_name}')]")))
+            print(f"BINGO: User '{developer_name}' verified in table!")
+        except:
+            # אם הוא לא נוצר, שוברים הכל כדי לא לשלוח QR שגוי!
+            raise Exception(f"CRITICAL ERROR: User '{developer_name}' was NOT created. Aborting process to prevent sending wrong QR.")
+        
+        print("Clicking topmost DETAILS button of the verified result...")
         top_details_btn_xpath = "(//tr[contains(@class, 'el-table__row')][1]//div[@class='btn-item'])[1]"
         details_btn = WebDriverWait(driver, 15).until(
             EC.presence_of_element_located((By.XPATH, top_details_btn_xpath))
@@ -213,7 +210,7 @@ def generate_dnake_qr(developer_name, item_id=None):
     except Exception as e:
         print("--- ERROR TRACEBACK ---")
         traceback.print_exc()
-        print(f"Exception message: {str(e)}")
+        print(f"Error Message: {str(e)}")
         return None
         
     finally:
