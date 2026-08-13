@@ -1,8 +1,6 @@
 import os
+import random
 os.environ['WDM_SSL_VERIFY'] = '0'
-
-# הייבוא החדש שלנו!
-from pyvirtualdisplay import Display
 
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
@@ -42,17 +40,14 @@ def generate_dnake_qr(developer_name, item_id=None):
     MONDAY_API_TOKEN = "eyJhbGciOiJIUzI1NiJ9.eyJ0aWQiOjYyMzIxMjUxOSwiYWFpIjoxMSwidWlkIjo5NzYwMTM1NywiaWFkIjoiMjAyNi0wMi0xOVQwOTowODozMS4wMDBaIiwicGVyIjoibWU6d3JpdGUiLCJhY3RpZCI6MjkzNzUzNDYsInJnbiI6ImV1YzEifQ.EsITDIb08RaofyL9eIJae6eFJ_zBUiOBeCugjSMqoDE"
     FILE_COLUMN_ID = "file_mm64npqq"
     
-    print("Starting Virtual Display...")
-    # הפעלת המסך המזויף בשרת
-    display = Display(visible=0, size=(1920, 1080))
-    display.start()
-    
     options = Options()
-    # שים לב! מחקנו לחלוטין את ה-headless! הדפדפן חושב שהוא רץ רגיל!
+    options.add_argument('--headless=new') 
     options.add_argument('--no-sandbox')
     options.add_argument('--disable-dev-shm-usage')
     options.add_argument('--window-size=1920,1080')
     options.add_argument('--ignore-certificate-errors') 
+    options.add_argument('--disable-blink-features=AutomationControlled')
+    options.add_argument('user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36')
     
     service = Service(ChromeDriverManager().install())
     driver = webdriver.Chrome(service=service, options=options)
@@ -69,94 +64,96 @@ def generate_dnake_qr(developer_name, item_id=None):
         driver.find_element(By.NAME, "password").send_keys("Rr304050!")
         driver.find_element(By.CLASS_NAME, "v2-login-button").click()
         
-        print("2. Logged in. Moving to site menu...")
+        print("2. Waiting for login to process...")
         site_menu = WebDriverWait(driver, 15).until(
             EC.presence_of_element_located((By.XPATH, "//a[@href='/siteManage/site']"))
         )
-        actions = ActionChains(driver)
-        actions.move_to_element(site_menu).perform()
-        time.sleep(1) 
+        time.sleep(2)
         
-        print("3. Clicking Person List...")
+        print("3. Extracting Security Token from browser...")
+        # טריק מטורף: גניבת האסימון המאובטח של השרת היישר מזיכרון הדפדפן!
+        auth_token = driver.execute_script("""
+            let token = null;
+            let vuex = window.localStorage.getItem('vuex');
+            if (vuex) {
+                try {
+                    let v = JSON.parse(vuex);
+                    if (v.user && v.user.token) token = v.user.token;
+                } catch(e) {}
+            }
+            if (!token) {
+                for (let i = 0; i < window.localStorage.length; i++) {
+                    let v = window.localStorage.getItem(window.localStorage.key(i));
+                    if (typeof v === 'string' && /^[a-f0-9]{32}$/i.test(v)) token = v;
+                }
+            }
+            return token;
+        """)
+        
+        if not auth_token:
+            raise Exception("CRITICAL ERROR: Could not extract authorization token!")
+            
+        print("Token extracted! Bypassing UI and injecting user via API...")
+        
+        # ==========================================
+        # פצצת האטום: יצירת משתמש ישירות ב-API
+        # ==========================================
+        api_url = "https://eu-api-cloud.ss-iot.com/admin-api/business/ac-person/v1/create"
+        
+        # בניית PIN קוד אקראי בן 8 ספרות
+        random_pin = str(random.randint(10000000, 99999999))
+        
+        headers = {
+            'Accept': 'application/json, text/plain, */*',
+            'Accept-Language': 'en_US',
+            'Authorization': f'Bearer {auth_token}',
+            'Content-Type': 'application/json;charset=UTF-8',
+            'Origin': 'https://eu-cloud.dnake.com',
+            'Project-Id': '2051211421803474944',
+            'Role-Type': '14',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36'
+        }
+        
+        payload = {
+            "name": developer_name,
+            "remark": "",
+            "email": "",
+            "qrcodeEnable": True,
+            "acGroupList": [{"groupId": "2056761567895093250"}], # הקבוצה של היזמים
+            "role": 7,
+            "uploadStr": "",
+            "facePhoto": "",
+            "fileId": "",
+            "icCardReqVOList": [],
+            "pinCode": random_pin
+        }
+        
+        response = requests.post(api_url, json=payload, headers=headers, verify=False)
+        print(f"API Response: {response.text}")
+        
+        if response.status_code == 200:
+            print(">>> User created flawlessly via API! <<<")
+        else:
+            print("API returned an error, but continuing to UI just in case...")
+
+        # ==========================================
+        # חזרה לממשק הרגיל רק כדי להוריד את התמונה
+        # ==========================================
+        print("4. Opening Person List...")
         person_menu = WebDriverWait(driver, 10).until(
             EC.presence_of_element_located((By.XPATH, "//a[@href='/accessManage/personList']"))
         )
         driver.execute_script("arguments[0].click();", person_menu)
         time.sleep(3) 
         
-        print("4. Clicking Customized Tab...")
+        print("5. Clicking Customized Tab...")
         customized_tab = WebDriverWait(driver, 10).until(
             EC.presence_of_element_located((By.ID, "tab-customized"))
         )
         driver.execute_script("arguments[0].click();", customized_tab)
-        time.sleep(2)
+        time.sleep(3)
         
-        print("5. Clicking ADD Button (Standard Local Method)...")
-        # זו הלחיצה המקורית שלך שעובדת מקומית!
-        main_add_btn = WebDriverWait(driver, 10).until(
-            EC.element_to_be_clickable((By.XPATH, "//div[@id='pane-customized']//button[.//span[contains(text(), 'Add')]]"))
-        )
-        main_add_btn.click() 
-        time.sleep(2)
-        
-        print("6. Entering Name...")
-        name_inputs = driver.find_elements(By.XPATH, "//input[@aria-label='Name']")
-        for inp in name_inputs:
-            if inp.is_displayed():
-                inp.send_keys(developer_name)
-                break
-        time.sleep(1)
-        
-        print("7. Clicking Set PIN...")
-        pin_btns = driver.find_elements(By.XPATH, "//button[contains(@class, 'setPinBtn')]")
-        for btn in pin_btns:
-            if btn.is_displayed():
-                driver.execute_script("arguments[0].click();", btn)
-                break
-        time.sleep(1)
-        
-        print("8. Checking QR Checkbox...")
-        qr_checkboxes = driver.find_elements(By.XPATH, "//div[contains(@class, 'pin-code-container')]/following-sibling::label//span[contains(@class, 'el-checkbox__inner')]")
-        for cb in qr_checkboxes:
-            if cb.is_displayed():
-                driver.execute_script("arguments[0].click();", cb)
-                break
-        time.sleep(1)
-        
-        print("9. Clicking Add Access Rule...")
-        access_add_btns = driver.find_elements(By.XPATH, "//button[contains(@class, 'secondary') and .//span[contains(text(), 'Add')]]")
-        for btn in access_add_btns:
-            if btn.is_displayed():
-                driver.execute_script("arguments[0].click();", btn)
-                break
-        time.sleep(2) 
-        
-        print("10. Selecting 'יזמים'...")
-        yazamim_checkbox = WebDriverWait(driver, 10).until(
-            EC.presence_of_element_located((By.XPATH, "//tr[.//td[contains(., 'יזמים')]]//span[contains(@class, 'el-checkbox__inner')]"))
-        )
-        driver.execute_script("arguments[0].click();", yazamim_checkbox)
-        time.sleep(1)
-        
-        print("11. Clicking OK on Access Rule...")
-        ok_buttons = driver.find_elements(By.XPATH, "//div[@aria-label='Select from Access Rule']//button[.//span[text()='OK']]")
-        for btn in ok_buttons:
-            if btn.is_displayed():
-                driver.execute_script("arguments[0].click();", btn)
-                break
-        time.sleep(2)
-        
-        print("12. Saving User...")
-        save_buttons = driver.find_elements(By.XPATH, "//button[.//span[contains(text(), 'Save')]]")
-        for btn in save_buttons:
-            if btn.is_displayed():
-                driver.execute_script("arguments[0].click();", btn)
-                break
-        
-        time.sleep(6) 
-        print(f"Successfully created user: {developer_name}")
-        
-        print("13. Searching for the new user...")
+        print("6. Searching for the new user...")
         search_inputs = driver.find_elements(By.XPATH, "//input[@aria-label='Name' or contains(@placeholder, 'Name')]")
         for inp in search_inputs:
             if inp.is_displayed():
@@ -167,7 +164,7 @@ def generate_dnake_qr(developer_name, item_id=None):
                 break
         time.sleep(3)
         
-        print("14. Clicking DETAILS...")
+        print("7. Clicking DETAILS...")
         top_details_btn_xpath = "(//tr[contains(@class, 'el-table__row')][1]//div[@class='btn-item'])[1]"
         details_btn = WebDriverWait(driver, 15).until(
             EC.presence_of_element_located((By.XPATH, top_details_btn_xpath))
@@ -178,7 +175,7 @@ def generate_dnake_qr(developer_name, item_id=None):
         
         time.sleep(3) 
         
-        print("15. Extracting QR Code...")
+        print("8. Extracting QR Code...")
         qr_img_xpath = "//div[contains(@class, 'info-value')]//img[contains(@src, 'base64')]"
         qr_img_element = WebDriverWait(driver, 10).until(
             EC.presence_of_element_located((By.XPATH, qr_img_xpath))
@@ -199,7 +196,7 @@ def generate_dnake_qr(developer_name, item_id=None):
             print(f"BINGO! QR code saved successfully as: {file_path}")
             
             if item_id:
-                print("16. Uploading QR code to Monday.com...")
+                print("9. Uploading QR code to Monday.com...")
                 upload_url = "https://api.monday.com/v2/file"
                 headers = {"Authorization": MONDAY_API_TOKEN}
                 
@@ -229,6 +226,3 @@ def generate_dnake_qr(developer_name, item_id=None):
         
     finally:
         driver.quit()
-        # חשוב מאוד לסגור את המסך בסוף!
-        if 'display' in locals():
-            display.stop()
