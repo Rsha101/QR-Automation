@@ -36,17 +36,11 @@ def upload_crash_screenshot(driver, item_id, token):
         print(f"Failed to upload crash screenshot: {e}")
 
 def generate_dnake_qr(developer_name, item_id=None):
-    # ==========================================
-    # הגדרות מאנדיי
-    # ==========================================
     MONDAY_API_TOKEN = "eyJhbGciOiJIUzI1NiJ9.eyJ0aWQiOjYyMzIxMjUxOSwiYWFpIjoxMSwidWlkIjo5NzYwMTM1NywiaWFkIjoiMjAyNi0wMi0xOVQwOTowODozMS4wMDBaIiwicGVyIjoibWU6d3JpdGUiLCJhY3RpZCI6MjkzNzUzNDYsInJnbiI6ImV1YzEifQ.EsITDIb08RaofyL9eIJae6eFJ_zBUiOBeCugjSMqoDE"
     FILE_COLUMN_ID = "file_mm64npqq"
     
-    # ==========================================
-    # הגדרות כרום (מצב Headless NEW ועקיפת חסימות)
-    # ==========================================
     options = Options()
-    options.add_argument('--headless=new') # מנוע חדש שמתנהג כמו דפדפן אמיתי!
+    options.add_argument('--headless=new') 
     options.add_argument('--no-sandbox')
     options.add_argument('--disable-dev-shm-usage')
     options.add_argument('--window-size=2560,1440')
@@ -60,7 +54,7 @@ def generate_dnake_qr(developer_name, item_id=None):
     try:
         output_folder = "."
         
-        print(f"Starting process for: {developer_name}")
+        print(f"1. Starting process for: {developer_name}")
         driver.get("https://eu-cloud.dnake.com/login")
         WebDriverWait(driver, 10).until(
             EC.presence_of_element_located((By.NAME, "username"))
@@ -69,6 +63,7 @@ def generate_dnake_qr(developer_name, item_id=None):
         driver.find_element(By.NAME, "password").send_keys("Rr304050!")
         driver.find_element(By.CLASS_NAME, "v2-login-button").click()
         
+        print("2. Logged in. Moving to site menu...")
         site_menu = WebDriverWait(driver, 15).until(
             EC.presence_of_element_located((By.XPATH, "//a[@href='/siteManage/site']"))
         )
@@ -76,99 +71,131 @@ def generate_dnake_qr(developer_name, item_id=None):
         actions.move_to_element(site_menu).perform()
         time.sleep(1) 
         
+        print("3. Clicking Person List...")
         person_menu = WebDriverWait(driver, 10).until(
             EC.presence_of_element_located((By.XPATH, "//a[@href='/accessManage/personList']"))
         )
         driver.execute_script("arguments[0].click();", person_menu)
-        time.sleep(3) 
+        time.sleep(4) 
         
+        print("4. Clicking Customized Tab...")
         customized_tab = WebDriverWait(driver, 10).until(
             EC.presence_of_element_located((By.ID, "tab-customized"))
         )
         driver.execute_script("arguments[0].click();", customized_tab)
-        time.sleep(2)
+        time.sleep(3)
         
-        main_add_btn = WebDriverWait(driver, 10).until(
-            EC.element_to_be_clickable((By.XPATH, "//div[@id='pane-customized']//button[.//span[contains(text(), 'Add')]]"))
+        print("5. Clicking ADD Button (Aggressive Retry Mode)...")
+        add_btn_xpath = "//div[@id='pane-customized']//button[.//span[contains(text(), 'Add')]]"
+        modal_opened = False
+        
+        # לולאה שמנסה ללחוץ בכמה שיטות עד שהחלון באמת נפתח
+        for attempt in range(4):
+            try:
+                main_add_btn = WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.XPATH, add_btn_xpath)))
+                driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", main_add_btn)
+                time.sleep(1)
+                
+                if attempt == 0:
+                    main_add_btn.click() # שיטה 1: לחיצה רגילה
+                elif attempt == 1:
+                    driver.execute_script("arguments[0].click();", main_add_btn) # שיטה 2: ג'אווה-סקריפט
+                elif attempt == 2:
+                    main_add_btn.send_keys(Keys.ENTER) # שיטה 3: מקש אנטר
+                else:
+                    ActionChains(driver).move_to_element(main_add_btn).click().perform() # שיטה 4: עכבר
+                
+                # בודקים אם החלון נפתח על ידי חיפוש שדה השם
+                time.sleep(2)
+                if len(driver.find_elements(By.XPATH, "//input[@aria-label='Name']")) > 0:
+                    modal_opened = True
+                    print(">>> Modal successfully opened! <<<")
+                    break
+            except Exception as e:
+                print(f"Attempt {attempt+1} method failed.")
+                
+        if not modal_opened:
+            raise Exception("CRITICAL ERROR: Failed to open Add Modal! The button refuses to click in Headless.")
+        
+        # מעכשיו משתמשים רק ב-WebDriverWait קשיח כדי שלא נדלג על כלום בטעות
+        print("6. Entering Name...")
+        name_input = WebDriverWait(driver, 10).until(
+            EC.presence_of_element_located((By.XPATH, "//input[@aria-label='Name']"))
         )
-        main_add_btn.click() 
-        time.sleep(2)
-        
-        name_inputs = driver.find_elements(By.XPATH, "//input[@aria-label='Name']")
-        for inp in name_inputs:
-            if inp.is_displayed():
-                inp.send_keys(developer_name)
-                break
+        name_input.clear()
+        name_input.send_keys(developer_name)
         time.sleep(1)
         
-        pin_btns = driver.find_elements(By.XPATH, "//button[contains(@class, 'setPinBtn')]")
-        for btn in pin_btns:
-            if btn.is_displayed():
-                driver.execute_script("arguments[0].click();", btn)
-                break
+        print("7. Clicking Set PIN...")
+        pin_btn = WebDriverWait(driver, 10).until(
+            EC.presence_of_element_located((By.XPATH, "//button[contains(@class, 'setPinBtn')]"))
+        )
+        driver.execute_script("arguments[0].click();", pin_btn)
         time.sleep(1)
         
-        qr_checkboxes = driver.find_elements(By.XPATH, "//div[contains(@class, 'pin-code-container')]/following-sibling::label//span[contains(@class, 'el-checkbox__inner')]")
-        for cb in qr_checkboxes:
-            if cb.is_displayed():
-                driver.execute_script("arguments[0].click();", cb)
-                break
+        print("8. Checking QR Checkbox...")
+        qr_checkbox = WebDriverWait(driver, 10).until(
+            EC.presence_of_element_located((By.XPATH, "//div[contains(@class, 'pin-code-container')]/following-sibling::label//span[contains(@class, 'el-checkbox__inner')]"))
+        )
+        driver.execute_script("arguments[0].click();", qr_checkbox)
         time.sleep(1)
         
-        access_add_btns = driver.find_elements(By.XPATH, "//button[contains(@class, 'secondary') and .//span[contains(text(), 'Add')]]")
-        for btn in access_add_btns:
-            if btn.is_displayed():
-                driver.execute_script("arguments[0].click();", btn)
-                break
-        time.sleep(2) 
+        print("9. Clicking Add Access Rule...")
+        access_add_btn = WebDriverWait(driver, 10).until(
+            EC.presence_of_element_located((By.XPATH, "//button[contains(@class, 'secondary') and .//span[contains(text(), 'Add')]]"))
+        )
+        driver.execute_script("arguments[0].click();", access_add_btn)
+        time.sleep(3) 
         
-        yazamim_checkbox = WebDriverWait(driver, 10).until(
+        print("10. Selecting 'יזמים'...")
+        yazamim_checkbox = WebDriverWait(driver, 15).until(
             EC.presence_of_element_located((By.XPATH, "//tr[.//td[contains(., 'יזמים')]]//span[contains(@class, 'el-checkbox__inner')]"))
         )
+        driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", yazamim_checkbox)
+        time.sleep(1)
         driver.execute_script("arguments[0].click();", yazamim_checkbox)
         time.sleep(1)
         
-        ok_buttons = driver.find_elements(By.XPATH, "//div[@aria-label='Select from Access Rule']//button[.//span[text()='OK']]")
-        for btn in ok_buttons:
-            if btn.is_displayed():
-                driver.execute_script("arguments[0].click();", btn)
-                break
+        print("11. Clicking OK on Access Rule...")
+        ok_button = WebDriverWait(driver, 10).until(
+            EC.presence_of_element_located((By.XPATH, "//div[@aria-label='Select from Access Rule']//button[.//span[text()='OK']]"))
+        )
+        driver.execute_script("arguments[0].click();", ok_button)
         time.sleep(2)
         
-        save_buttons = driver.find_elements(By.XPATH, "//button[.//span[contains(text(), 'Save')]]")
-        for btn in save_buttons:
-            if btn.is_displayed():
-                driver.execute_script("arguments[0].click();", btn)
-                break
+        print("12. Saving User...")
+        save_button = WebDriverWait(driver, 10).until(
+            EC.presence_of_element_located((By.XPATH, "//button[.//span[contains(text(), 'Save')]]"))
+        )
+        driver.execute_script("arguments[0].click();", save_button)
         
         time.sleep(6) 
         print(f"Successfully created user: {developer_name}")
         
-        # חיפוש המשתמש (נוסף כדי למנוע הורדה של QR שגוי במקרה של כמה הרצות במקביל)
-        search_inputs = driver.find_elements(By.XPATH, "//input[@aria-label='Name' or contains(@placeholder, 'Name')]")
-        for inp in search_inputs:
-            if inp.is_displayed():
-                inp.clear()
-                inp.send_keys(developer_name)
-                time.sleep(1)
-                inp.send_keys(Keys.ENTER)
-                break
-        time.sleep(3)
+        print("13. Searching for the new user...")
+        search_input = WebDriverWait(driver, 10).until(
+            EC.presence_of_element_located((By.XPATH, "//input[@aria-label='Name' or contains(@placeholder, 'Name')]"))
+        )
+        search_input.clear()
+        search_input.send_keys(developer_name)
+        time.sleep(1)
+        search_input.send_keys(Keys.ENTER)
+        time.sleep(4)
         
+        print("14. Clicking DETAILS...")
         top_details_btn_xpath = "(//tr[contains(@class, 'el-table__row')][1]//div[@class='btn-item'])[1]"
         details_btn = WebDriverWait(driver, 15).until(
             EC.presence_of_element_located((By.XPATH, top_details_btn_xpath))
         )
-        
         driver.execute_script("arguments[0].scrollIntoView(true);", details_btn)
         time.sleep(1)
         driver.execute_script("arguments[0].click();", details_btn)
-        print("Successfully clicked on the topmost DETAILS button.")
         
-        time.sleep(3) 
+        time.sleep(4) 
         
+        print("15. Extracting QR Code...")
         qr_img_xpath = "//div[contains(@class, 'info-value')]//img[contains(@src, 'base64')]"
-        qr_img_element = WebDriverWait(driver, 10).until(
+        qr_img_element = WebDriverWait(driver, 15).until(
             EC.presence_of_element_located((By.XPATH, qr_img_xpath))
         )
         
@@ -186,11 +213,8 @@ def generate_dnake_qr(developer_name, item_id=None):
                 
             print(f"BINGO! QR code saved successfully as: {file_path}")
             
-            # ==========================================
-            # העלאת הקובץ ישירות למאנדיי
-            # ==========================================
             if item_id:
-                print("Uploading QR code to Monday.com...")
+                print("16. Uploading QR code to Monday.com...")
                 upload_url = "https://api.monday.com/v2/file"
                 headers = {"Authorization": MONDAY_API_TOKEN}
                 
