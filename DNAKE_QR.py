@@ -41,10 +41,15 @@ def generate_dnake_qr(developer_name, item_id=None):
     FILE_COLUMN_ID = "file_mm64npqq"
     
     options = Options()
-    options.add_argument('--headless')
+    # פקודת הקסם החדשה: שימוש במנוע דפדפן מלא ואמיתי לחלוטין בענן
+    options.add_argument('--headless=new') 
     options.add_argument('--no-sandbox')
     options.add_argument('--disable-dev-shm-usage')
+    
+    # הכרחת רזולוציה ענקית כדי לוודא שום דבר לא מוסתר
     options.add_argument('--window-size=2560,1440')
+    options.add_argument('--force-device-scale-factor=1')
+    
     options.add_argument('--ignore-certificate-errors')
     options.add_argument('--disable-blink-features=AutomationControlled')
     options.add_argument('--lang=en-US') 
@@ -77,32 +82,33 @@ def generate_dnake_qr(developer_name, item_id=None):
         customized_tab = WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.ID, "tab-customized")))
         driver.execute_script("arguments[0].click();", customized_tab)
         
-        # ניקוי מסכות טעינה
+        # המתנה להיעלמות מסכי טעינה ליתר ביטחון
         try:
             WebDriverWait(driver, 5).until_not(EC.presence_of_element_located((By.CLASS_NAME, "el-loading-mask")))
         except:
             pass
             
-        time.sleep(2)
+        time.sleep(3)
         upload_step_screenshot(driver, "step_3_customized_tab", item_id, MONDAY_API_TOKEN)
         
-        print("Clicking Add button using Offset Click (Bypassing overlays)...")
+        print("Clicking Add button (Clean Local Method)...")
+        # חזרנו לסלקטור שעובד אצלך מקומית
         add_btn_xpath = "//div[@id='pane-customized']//button[.//span[contains(text(), 'Add')]]"
-        modal_opened = False
         
+        modal_opened = False
         for attempt in range(3):
             try:
                 main_add_btn = WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.XPATH, add_btn_xpath)))
                 driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", main_add_btn)
                 time.sleep(1)
                 
-                # לחיצה עם היסט (Offset) בפינת הכפתור - עוקף חסימות מרכזיות
-                ActionChains(driver).move_to_element_with_offset(main_add_btn, 5, 5).click().perform()
+                # לחיצת JS פשוטה כמו שעובדת במחשב שלך
+                driver.execute_script("arguments[0].click();", main_add_btn)
                 
-                # בדיקה האם החלון נפתח בהצלחה
+                # בדיקה האם החלון נפתח
                 WebDriverWait(driver, 3).until(EC.presence_of_element_located((By.XPATH, "//input[@aria-label='Name']")))
                 modal_opened = True
-                print("Modal opened successfully by offset click!")
+                print("Modal opened successfully!")
                 break 
             except Exception as e:
                 print(f"Attempt {attempt+1} failed: {e}")
