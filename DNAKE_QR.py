@@ -1,6 +1,9 @@
 import os
 os.environ['WDM_SSL_VERIFY'] = '0'
 
+# הייבוא החדש שלנו!
+from pyvirtualdisplay import Display
+
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service
@@ -39,15 +42,17 @@ def generate_dnake_qr(developer_name, item_id=None):
     MONDAY_API_TOKEN = "eyJhbGciOiJIUzI1NiJ9.eyJ0aWQiOjYyMzIxMjUxOSwiYWFpIjoxMSwidWlkIjo5NzYwMTM1NywiaWFkIjoiMjAyNi0wMi0xOVQwOTowODozMS4wMDBaIiwicGVyIjoibWU6d3JpdGUiLCJhY3RpZCI6MjkzNzUzNDYsInJnbiI6ImV1YzEifQ.EsITDIb08RaofyL9eIJae6eFJ_zBUiOBeCugjSMqoDE"
     FILE_COLUMN_ID = "file_mm64npqq"
     
+    print("Starting Virtual Display...")
+    # הפעלת המסך המזויף בשרת
+    display = Display(visible=0, size=(1920, 1080))
+    display.start()
+    
     options = Options()
-    options.add_argument('--headless=new') 
+    # שים לב! מחקנו לחלוטין את ה-headless! הדפדפן חושב שהוא רץ רגיל!
     options.add_argument('--no-sandbox')
     options.add_argument('--disable-dev-shm-usage')
-    # חזרנו לרזולוציה המדויקת מהקוד המקומי שלך!
     options.add_argument('--window-size=1920,1080')
     options.add_argument('--ignore-certificate-errors') 
-    options.add_argument('--disable-blink-features=AutomationControlled')
-    options.add_argument('user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36')
     
     service = Service(ChromeDriverManager().install())
     driver = webdriver.Chrome(service=service, options=options)
@@ -84,132 +89,83 @@ def generate_dnake_qr(developer_name, item_id=None):
             EC.presence_of_element_located((By.ID, "tab-customized"))
         )
         driver.execute_script("arguments[0].click();", customized_tab)
-        time.sleep(3)
+        time.sleep(2)
         
-        # פעולת ניקוי סביבה: מחיקת כל אלמנט שקוף שעלול לחסום קליקים בענן
-        print("Cleaning up any invisible loading masks...")
-        driver.execute_script("""
-            var loaders = document.querySelectorAll('.el-loading-mask');
-            for (var i = 0; i < loaders.length; i++) {
-                loaders[i].parentNode.removeChild(loaders[i]);
-            }
-        """)
-        time.sleep(1)
-        
-        print("5. Clicking ADD Button (Local method + Spacebar fallback)...")
-        add_btn_xpath = "//div[@id='pane-customized']//button[.//span[contains(text(), 'Add')]]"
-        main_add_btn = WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.XPATH, add_btn_xpath)))
-        
-        modal_opened = False
-        
-        # ניסיון 1: קליק רגיל בדיוק כמו במחשב שלך (בלי לגלול!)
-        try:
-            main_add_btn.click()
-            WebDriverWait(driver, 3).until(EC.presence_of_element_located((By.XPATH, "//input[@aria-label='Name']")))
-            modal_opened = True
-            print(">>> Modal opened via standard click!")
-        except:
-            pass
-            
-        # ניסיון 2: פוקוס ואז מקש רווח (טריק מקלדת שעוקף כל חסימת עכבר)
-        if not modal_opened:
-            print("Standard click missed. Forcing Spacebar on the button...")
-            driver.execute_script("arguments[0].focus();", main_add_btn)
-            time.sleep(0.5)
-            main_add_btn.send_keys(Keys.SPACE)
-            try:
-                WebDriverWait(driver, 3).until(EC.presence_of_element_located((By.XPATH, "//input[@aria-label='Name']")))
-                modal_opened = True
-                print(">>> Modal opened via Spacebar!")
-            except:
-                pass
-                
-        # ניסיון 3: הדמיית אירוע עכבר מוחלטת ב-JavaScript בדיוק על מרכז הכפתור
-        if not modal_opened:
-            print("Spacebar missed. Forcing absolute JS MouseEvent...")
-            driver.execute_script("""
-                var btn = arguments[0];
-                var rect = btn.getBoundingClientRect();
-                var x = rect.left + (rect.width / 2);
-                var y = rect.top + (rect.height / 2);
-                ['mousedown', 'mouseup', 'click'].forEach(function(evtType) {
-                    var evt = new MouseEvent(evtType, { bubbles: true, cancelable: true, view: window, clientX: x, clientY: y });
-                    btn.dispatchEvent(evt);
-                });
-            """, main_add_btn)
-            try:
-                WebDriverWait(driver, 3).until(EC.presence_of_element_located((By.XPATH, "//input[@aria-label='Name']")))
-                modal_opened = True
-                print(">>> Modal opened via JS MouseEvent!")
-            except:
-                pass
-                
-        if not modal_opened:
-            raise Exception("CRITICAL ERROR: Failed to open Add Modal! All click methods exhausted.")
+        print("5. Clicking ADD Button (Standard Local Method)...")
+        # זו הלחיצה המקורית שלך שעובדת מקומית!
+        main_add_btn = WebDriverWait(driver, 10).until(
+            EC.element_to_be_clickable((By.XPATH, "//div[@id='pane-customized']//button[.//span[contains(text(), 'Add')]]"))
+        )
+        main_add_btn.click() 
+        time.sleep(2)
         
         print("6. Entering Name...")
-        name_input = WebDriverWait(driver, 10).until(
-            EC.presence_of_element_located((By.XPATH, "//input[@aria-label='Name']"))
-        )
-        name_input.clear()
-        name_input.send_keys(developer_name)
+        name_inputs = driver.find_elements(By.XPATH, "//input[@aria-label='Name']")
+        for inp in name_inputs:
+            if inp.is_displayed():
+                inp.send_keys(developer_name)
+                break
         time.sleep(1)
         
         print("7. Clicking Set PIN...")
-        pin_btn = WebDriverWait(driver, 10).until(
-            EC.presence_of_element_located((By.XPATH, "//button[contains(@class, 'setPinBtn')]"))
-        )
-        driver.execute_script("arguments[0].click();", pin_btn)
+        pin_btns = driver.find_elements(By.XPATH, "//button[contains(@class, 'setPinBtn')]")
+        for btn in pin_btns:
+            if btn.is_displayed():
+                driver.execute_script("arguments[0].click();", btn)
+                break
         time.sleep(1)
         
         print("8. Checking QR Checkbox...")
-        qr_checkbox = WebDriverWait(driver, 10).until(
-            EC.presence_of_element_located((By.XPATH, "//div[contains(@class, 'pin-code-container')]/following-sibling::label//span[contains(@class, 'el-checkbox__inner')]"))
-        )
-        driver.execute_script("arguments[0].click();", qr_checkbox)
+        qr_checkboxes = driver.find_elements(By.XPATH, "//div[contains(@class, 'pin-code-container')]/following-sibling::label//span[contains(@class, 'el-checkbox__inner')]")
+        for cb in qr_checkboxes:
+            if cb.is_displayed():
+                driver.execute_script("arguments[0].click();", cb)
+                break
         time.sleep(1)
         
         print("9. Clicking Add Access Rule...")
-        access_add_btn = WebDriverWait(driver, 10).until(
-            EC.presence_of_element_located((By.XPATH, "//button[contains(@class, 'secondary') and .//span[contains(text(), 'Add')]]"))
-        )
-        driver.execute_script("arguments[0].click();", access_add_btn)
-        time.sleep(3) 
+        access_add_btns = driver.find_elements(By.XPATH, "//button[contains(@class, 'secondary') and .//span[contains(text(), 'Add')]]")
+        for btn in access_add_btns:
+            if btn.is_displayed():
+                driver.execute_script("arguments[0].click();", btn)
+                break
+        time.sleep(2) 
         
         print("10. Selecting 'יזמים'...")
-        yazamim_checkbox = WebDriverWait(driver, 15).until(
+        yazamim_checkbox = WebDriverWait(driver, 10).until(
             EC.presence_of_element_located((By.XPATH, "//tr[.//td[contains(., 'יזמים')]]//span[contains(@class, 'el-checkbox__inner')]"))
         )
-        driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", yazamim_checkbox)
-        time.sleep(1)
         driver.execute_script("arguments[0].click();", yazamim_checkbox)
         time.sleep(1)
         
         print("11. Clicking OK on Access Rule...")
-        ok_button = WebDriverWait(driver, 10).until(
-            EC.presence_of_element_located((By.XPATH, "//div[@aria-label='Select from Access Rule']//button[.//span[text()='OK']]"))
-        )
-        driver.execute_script("arguments[0].click();", ok_button)
+        ok_buttons = driver.find_elements(By.XPATH, "//div[@aria-label='Select from Access Rule']//button[.//span[text()='OK']]")
+        for btn in ok_buttons:
+            if btn.is_displayed():
+                driver.execute_script("arguments[0].click();", btn)
+                break
         time.sleep(2)
         
         print("12. Saving User...")
-        save_button = WebDriverWait(driver, 10).until(
-            EC.presence_of_element_located((By.XPATH, "//button[.//span[contains(text(), 'Save')]]"))
-        )
-        driver.execute_script("arguments[0].click();", save_button)
+        save_buttons = driver.find_elements(By.XPATH, "//button[.//span[contains(text(), 'Save')]]")
+        for btn in save_buttons:
+            if btn.is_displayed():
+                driver.execute_script("arguments[0].click();", btn)
+                break
         
         time.sleep(6) 
         print(f"Successfully created user: {developer_name}")
         
         print("13. Searching for the new user...")
-        search_input = WebDriverWait(driver, 10).until(
-            EC.presence_of_element_located((By.XPATH, "//input[@aria-label='Name' or contains(@placeholder, 'Name')]"))
-        )
-        search_input.clear()
-        search_input.send_keys(developer_name)
-        time.sleep(1)
-        search_input.send_keys(Keys.ENTER)
-        time.sleep(4)
+        search_inputs = driver.find_elements(By.XPATH, "//input[@aria-label='Name' or contains(@placeholder, 'Name')]")
+        for inp in search_inputs:
+            if inp.is_displayed():
+                inp.clear()
+                inp.send_keys(developer_name)
+                time.sleep(1)
+                inp.send_keys(Keys.ENTER)
+                break
+        time.sleep(3)
         
         print("14. Clicking DETAILS...")
         top_details_btn_xpath = "(//tr[contains(@class, 'el-table__row')][1]//div[@class='btn-item'])[1]"
@@ -220,11 +176,11 @@ def generate_dnake_qr(developer_name, item_id=None):
         time.sleep(1)
         driver.execute_script("arguments[0].click();", details_btn)
         
-        time.sleep(4) 
+        time.sleep(3) 
         
         print("15. Extracting QR Code...")
         qr_img_xpath = "//div[contains(@class, 'info-value')]//img[contains(@src, 'base64')]"
-        qr_img_element = WebDriverWait(driver, 15).until(
+        qr_img_element = WebDriverWait(driver, 10).until(
             EC.presence_of_element_located((By.XPATH, qr_img_xpath))
         )
         
@@ -273,3 +229,6 @@ def generate_dnake_qr(developer_name, item_id=None):
         
     finally:
         driver.quit()
+        # חשוב מאוד לסגור את המסך בסוף!
+        if 'display' in locals():
+            display.stop()
