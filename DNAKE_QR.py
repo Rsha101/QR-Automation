@@ -59,9 +59,9 @@ def generate_dnake_qr(developer_name, item_id=None):
         driver.get("https://eu-cloud.dnake.com/login")
         WebDriverWait(driver, 10).until(
             EC.presence_of_element_located((By.NAME, "username"))
-        ).send_keys("shahar_ro@mail.tel-aviv.gov.il")
+        ).send_keys("Haratzif@gmail.com")
         
-        driver.find_element(By.NAME, "password").send_keys("Rr304050!")
+        driver.find_element(By.NAME, "password").send_keys("1b1GkgaQ")
         driver.find_element(By.CLASS_NAME, "v2-login-button").click()
         
         print("2. Waiting for login to process...")
